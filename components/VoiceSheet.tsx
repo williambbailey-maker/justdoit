@@ -139,8 +139,8 @@ export default function VoiceSheet({
     setDraft((d) => d.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#e3e2de]">
-      <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#c7c7c7] px-6">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg)]">
+      <header className="flex h-20 shrink-0 items-center justify-between border-b border-[var(--rule)] px-6">
         <p className="label">Voice note</p>
         <button onClick={onClose} className="text-sm font-semibold underline underline-offset-4">
           Close
@@ -149,7 +149,7 @@ export default function VoiceSheet({
 
       <div className="flex-1 overflow-y-auto px-6 py-8">
         {message && (
-          <p className="mb-6 border-l-2 border-[#141414] pl-4 text-sm text-[#444343]">{message}</p>
+          <p className="mb-6 border-l-2 border-[var(--fg)] pl-4 text-sm text-[var(--fg-2)]">{message}</p>
         )}
 
         {stage !== "review" && (
@@ -201,13 +201,13 @@ export default function VoiceSheet({
             <h2 className="text-5xl font-extrabold leading-[0.9] tracking-[-0.03em] sm:text-6xl">
               {draft.length} task{draft.length === 1 ? "" : "s"}
             </h2>
-            <p className="mt-4 max-w-md text-base text-[#444343]">
+            <p className="mt-4 max-w-md text-base text-[var(--fg-2)]">
               Adjust anything before it lands. Removing a row drops just that task.
             </p>
 
-            <div className="mt-10 border-t border-[#c7c7c7]">
+            <div className="mt-10 border-t border-[var(--rule)]">
               {draft.map((t, i) => (
-                <div key={i} className="border-b border-[#c7c7c7] py-6">
+                <div key={i} className="border-b border-[var(--rule)] py-6">
                   <div className="flex items-start gap-4">
                     <span className="idx mt-2 shrink-0">{String(i + 1).padStart(3, "0")}</span>
                     <div className="flex-1">
@@ -217,13 +217,13 @@ export default function VoiceSheet({
                         autoCapitalize="none"
                         className="w-full border-none bg-transparent p-0 text-2xl font-bold leading-tight tracking-[-0.02em] outline-none"
                       />
-                      {t.note && <p className="mt-2 text-sm text-[#444343]">{t.note}</p>}
+                      {t.note && <p className="mt-2 text-sm text-[var(--fg-2)]">{t.note}</p>}
 
                       <div className="mt-4 flex flex-wrap items-center gap-3">
                         <select
                           value={t.listId}
                           onChange={(e) => update(i, { listId: e.target.value })}
-                          className="rounded-[8px] border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[#444343]"
+                          className="rounded-[8px] border border-[var(--rule)] bg-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[var(--fg-2)]"
                         >
                           {lists.map((l) => (
                             <option key={l.id} value={l.id}>
@@ -236,12 +236,12 @@ export default function VoiceSheet({
                           type="date"
                           value={t.due ?? ""}
                           onChange={(e) => update(i, { due: e.target.value || undefined })}
-                          className="rounded-[8px] border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs text-[#444343]"
+                          className="rounded-[8px] border border-[var(--rule)] bg-transparent px-3 py-2 text-xs text-[var(--fg-2)]"
                         />
 
                         <button
                           onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}
-                          className="ml-auto text-xs font-bold uppercase tracking-[0.15em] text-[#7a7a7a] underline underline-offset-4"
+                          className="ml-auto text-xs font-bold uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
                         >
                           Remove
                         </button>
@@ -255,7 +255,7 @@ export default function VoiceSheet({
         )}
       </div>
 
-      <footer className="shrink-0 border-t border-[#c7c7c7] p-6">
+      <footer className="shrink-0 border-t border-[var(--rule)] p-6">
         {stage === "idle" && (
           <div className="flex gap-3">
             {supported && (

@@ -5,11 +5,11 @@ import { exportAll, importAll, wipeAll } from "@/lib/db";
 import { hashCode } from "@/lib/lock";
 import { List, Settings } from "@/lib/types";
 
-const ACCENTS = ["#1351AA", "#141414", "#A6431F", "#1F6B47", "#6B3FA0"];
+const ACCENTS = ["#1351AA", "var(--fg)", "#A6431F", "#1F6B47", "#6B3FA0"];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-[#c7c7c7] py-6">
+    <div className="border-b border-[var(--rule)] py-6">
       <p className="label mb-3">{label}</p>
       {children}
     </div>
@@ -62,8 +62,8 @@ export default function SettingsPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#e3e2de]">
-      <header className="flex h-20 shrink-0 items-center justify-between border-b border-[#c7c7c7] px-6">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg)]">
+      <header className="flex h-20 shrink-0 items-center justify-between border-b border-[var(--rule)] px-6">
         <p className="label">Settings</p>
         <button onClick={onClose} className="text-sm font-semibold underline underline-offset-4">
           Done
@@ -76,13 +76,13 @@ export default function SettingsPanel({
           <span style={{ color: "var(--accent)" }}>yours</span>
         </h2>
 
-        {status && <p className="mb-6 border-l-2 border-[#141414] pl-4 text-sm text-[#444343]">{status}</p>}
+        {status && <p className="mb-6 border-l-2 border-[var(--fg)] pl-4 text-sm text-[var(--fg-2)]">{status}</p>}
 
-        <div className="border-t border-[#c7c7c7]">
+        <div className="border-t border-[var(--rule)]">
           <Row label="Lists">
             <div className="space-y-4">
               {lists.map((l) => (
-                <div key={l.id} className="rounded-[10px] border border-[#c7c7c7] p-4">
+                <div key={l.id} className="rounded-[10px] border border-[var(--rule)] p-4">
                   <div className="flex items-center gap-3">
                     <input
                       value={l.name}
@@ -93,7 +93,7 @@ export default function SettingsPanel({
                     {!l.system && lists.length > 1 && (
                       <button
                         onClick={() => onDeleteList(l.id)}
-                        className="text-xs font-bold uppercase tracking-[0.15em] text-[#7a7a7a] underline underline-offset-4"
+                        className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
                       >
                         Delete
                       </button>
@@ -109,7 +109,7 @@ export default function SettingsPanel({
                     }
                     placeholder="routing keywords, comma separated"
                     autoCapitalize="none"
-                    className="mt-3 w-full border-none bg-transparent p-0 text-sm text-[#444343] outline-none"
+                    className="mt-3 w-full border-none bg-transparent p-0 text-sm text-[var(--fg-2)] outline-none"
                   />
                 </div>
               ))}
@@ -156,6 +156,18 @@ export default function SettingsPanel({
             </select>
           </Row>
 
+          <Row label="Theme">
+            <select
+              value={settings.theme}
+              onChange={(e) => patch({ theme: e.target.value as Settings["theme"] })}
+              className="field"
+            >
+              <option value="system">Match my device</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </Row>
+
           <Row label="Accent">
             <div className="flex gap-3">
               {ACCENTS.map((c) => (
@@ -166,7 +178,7 @@ export default function SettingsPanel({
                   className="h-10 w-10 rounded-[8px] border transition-transform duration-300"
                   style={{
                     background: c,
-                    borderColor: settings.accent === c ? "#141414" : "#c7c7c7",
+                    borderColor: settings.accent === c ? "var(--fg)" : "var(--rule)",
                     transform: settings.accent === c ? "scale(1.1)" : "none",
                   }}
                 />
@@ -176,7 +188,7 @@ export default function SettingsPanel({
 
           <Row label="Voice parsing">
             <label className="flex items-center justify-between gap-4">
-              <span className="text-base text-[#444343]">
+              <span className="text-base text-[var(--fg-2)]">
                 Use Claude to split notes into tasks. Off means local keyword rules.
               </span>
               <input
@@ -197,7 +209,7 @@ export default function SettingsPanel({
 
           <Row label="Transcripts">
             <label className="flex items-center justify-between gap-4">
-              <span className="text-base text-[#444343]">Keep the raw text of each voice note</span>
+              <span className="text-base text-[var(--fg-2)]">Keep the raw text of each voice note</span>
               <input
                 type="checkbox"
                 checked={settings.keepTranscripts}
@@ -288,7 +300,7 @@ export default function SettingsPanel({
                 Erase all
               </button>
             </div>
-            <p className="mt-4 text-sm text-[#444343]">
+            <p className="mt-4 text-sm text-[var(--fg-2)]">
               Data lives in this browser only. Export before clearing site data or switching devices.
             </p>
           </Row>

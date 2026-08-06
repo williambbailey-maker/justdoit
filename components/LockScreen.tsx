@@ -63,7 +63,7 @@ export default function LockScreen({
 
 
   return (
-    <main className="flex min-h-dvh flex-col justify-between bg-[#e3e2de] px-6 py-10">
+    <main className="flex min-h-dvh flex-col justify-between bg-[var(--bg)] px-6 py-10">
       <div>
         <Mark height={18} />
       </div>
@@ -76,28 +76,28 @@ export default function LockScreen({
           >
             {heading}
           </h1>
-          <p className="mt-4 text-sm text-[#444343]">
+          <p className="mt-4 text-sm text-[var(--fg-2)]">
             {mode === "set"
               ? "Four digits. It stays on this device."
               : "Four digits to open your lists."}
           </p>
-          {error && <p className="mt-3 text-sm font-semibold text-[#141414]">{error}</p>}
+          {error && <p className="mt-3 text-sm font-semibold text-[var(--fg)]">{error}</p>}
         </div>
 
         <div className="flex gap-4">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-4 w-4 rounded-[4px] border border-[#141414]"
+              className="h-4 w-4 rounded-[4px] border border-[var(--fg)]"
               style={{ background: i < code.length ? "var(--accent)" : "transparent" }}
             />
           ))}
         </div>
 
-        <div className="grid w-full max-w-xs grid-cols-3 overflow-hidden rounded-[14px] border-l border-t border-[#c7c7c7]">
+        <div className="grid w-full max-w-xs grid-cols-3 overflow-hidden rounded-[14px] border-l border-t border-[var(--rule)]">
           {KEYS.map((k, i) =>
             k === "" ? (
-              <div key={i} className="border-b border-r border-[#c7c7c7]" />
+              <div key={i} className="border-b border-r border-[var(--rule)]" />
             ) : (
               <button
                 key={i}
@@ -106,7 +106,7 @@ export default function LockScreen({
                     ? setCode((c) => c.slice(0, -1))
                     : setCode((c) => (c.length < 4 ? c + k : c))
                 }
-                className="border-b border-r border-[#c7c7c7] py-5 text-2xl font-bold transition-colors duration-300 hover:bg-white/30 active:bg-white/50"
+                className="border-b border-r border-[var(--rule)] py-5 text-2xl font-bold transition-colors duration-300 hover:bg-[var(--hover)] active:bg-[var(--hover)]"
               >
                 {k === "del" ? "←" : k}
               </button>

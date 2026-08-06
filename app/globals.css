@@ -2,20 +2,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #e3e2de;
-  --color-cobalt: #1351aa;
-  --color-jet: #141414;
-  --color-deep: #444343;
-  --color-muted: #7a7a7a;
-  --color-rule: #c7c7c7;
-
   --font-sans: "General Sans", "Aileron", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-}
-
-:root {
-  --accent: #1351aa;
-  color-scheme: light;
 }
 
 /* Softened from the original 0px-corner spec: enough radius to take the
@@ -24,15 +12,44 @@
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
+
+  /* Light — the original poster palette. */
+  --bg: #e3e2de;
+  --bg-95: rgb(227 226 222 / 0.95);
+  --fg: #141414;
+  --fg-2: #444343;
+  --muted: #7a7a7a;
+  --rule: #c7c7c7;
+  --hover: rgb(255 255 255 / 0.35);
+  --on-accent: #e3e2de;
+  --accent: #1351aa;
+
+  color-scheme: light;
+}
+
+/* Dark — the same structure, inverted. Warm-neutral rather than pure black
+   so the cream identity still reads. */
+:root[data-theme="dark"] {
+  --bg: #131312;
+  --bg-95: rgb(19 19 18 / 0.95);
+  --fg: #edece8;
+  --fg-2: #b5b3ad;
+  --muted: #85837e;
+  --rule: #34332f;
+  --hover: rgb(255 255 255 / 0.07);
+  --on-accent: #0d0d0c;
+
+  color-scheme: dark;
 }
 
 html,
 body {
-  background: #e3e2de;
-  color: #141414;
+  background: var(--bg);
+  color: var(--fg);
   font-family: "General Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  transition: background-color 0.3s linear, color 0.3s linear;
 }
 
 body {
@@ -45,7 +62,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: #7a7a7a;
+  color: var(--muted);
 }
 
 /* The list name above the headline, at 250% of a standard label. */
@@ -55,13 +72,13 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   line-height: 1.1;
-  color: #7a7a7a;
+  color: var(--muted);
 }
 
 .idx {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 0.7rem;
-  color: #7a7a7a;
+  color: var(--muted);
 }
 
 .btn,
@@ -83,30 +100,33 @@ body {
 
 .btn-primary {
   background: var(--accent);
-  color: #e3e2de;
+  color: var(--on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #141414;
+  background: var(--fg);
+  color: var(--bg);
 }
 
+/* The inverted button: whatever the background is, this is the opposite. */
 .btn-dark {
-  background: #141414;
-  color: #e3e2de;
+  background: var(--fg);
+  color: var(--bg);
 }
 
 .btn-dark:hover:not(:disabled) {
   background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn-ghost {
   background: transparent;
-  color: #141414;
-  border-color: #c7c7c7;
+  color: var(--fg);
+  border-color: var(--rule);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.4);
+  background: var(--hover);
 }
 
 .btn:disabled,
@@ -119,12 +139,12 @@ body {
 
 .field {
   width: 100%;
-  border: 1px solid #c7c7c7;
+  border: 1px solid var(--rule);
   border-radius: var(--r-md);
   background: transparent;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  color: #141414;
+  color: var(--fg);
   outline: none;
   transition: border-color 0.3s linear;
 }
@@ -134,7 +154,7 @@ body {
 }
 
 .field::placeholder {
-  color: #7a7a7a;
+  color: var(--muted);
 }
 
 /* Hide scrollbars on the horizontal list rail without losing scroll. */

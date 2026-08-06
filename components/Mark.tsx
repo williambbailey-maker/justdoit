@@ -10,7 +10,7 @@ const RATIO = 24.1 / 8.4;
 
 export default function Mark({
   height,
-  color = "#141414",
+  color = "var(--fg)",
   className,
 }: {
   height: number;

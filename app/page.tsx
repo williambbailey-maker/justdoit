@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LockScreen from "@/components/LockScreen";
 import Mark from "@/components/Mark";
 import SettingsPanel from "@/components/SettingsPanel";
@@ -19,6 +19,70 @@ const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice
  * synchronously on mount — well before IndexedDB settings finish loading.
  */
 const SPLASH_KEY = "swoosh:splash-seconds";
+const THEME_KEY = "swoosh:theme";
+
+/**
+ * Cobalt is too dim on a dark field. Raise lightness in HSL rather than
+ * mixing toward white, which would wash the hue out to a pale periwinkle.
+ */
+function lift(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const [r, g, bl] = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  const max = Math.max(r, g, bl);
+  const min = Math.min(r, g, bl);
+  const l = (max + min) / 2;
+  const d = max - min;
+
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - bl) / d) % 6;
+    else if (max === g) h = (bl - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+
+  const l2 = Math.max(l, 0.6);
+  const s2 = d === 0 ? 0 : Math.max(s, 0.7);
+
+  const c = (1 - Math.abs(2 * l2 - 1)) * s2;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const mAdj = l2 - c / 2;
+  const seg = Math.floor(h / 60) % 6;
+  const rgb = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x],
+  ][seg];
+
+  return `#${rgb
+    .map((v) => Math.round((v + mAdj) * 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function Gear() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--fg)" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path
+        strokeLinecap="round"
+        d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"
+      />
+    </svg>
+  );
+}
+
+function resolveDark(theme: Settings["theme"]): boolean {
+  if (theme === "dark") return true;
+  if (theme === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
 function dueLabel(iso: string): string {
   const today = new Date();
@@ -39,6 +103,8 @@ export default function Home() {
   const [quick, setQuick] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -75,15 +141,40 @@ export default function Home() {
     })();
   }, [load]);
 
+  // Theme and accent travel together: the accent has to be lifted on dark.
   useEffect(() => {
-    document.documentElement.style.setProperty("--accent", settings.accent);
-  }, [settings.accent]);
+    const apply = () => {
+      const dark = resolveDark(settings.theme);
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      document.documentElement.style.setProperty(
+        "--accent",
+        dark ? lift(settings.accent) : settings.accent,
+      );
+    };
+    apply();
+    localStorage.setItem(THEME_KEY, settings.theme);
+
+    if (settings.theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [settings.accent, settings.theme]);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+
+  // Dismiss the gear menu on any click outside it.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [menuOpen]);
 
   // Keep an in-use session from auto-locking under the user.
   useEffect(() => {
@@ -250,7 +341,7 @@ export default function Home() {
   }
 
   if (!mounted || gate === "loading") {
-    return <main className="min-h-dvh bg-[#e3e2de]" />;
+    return <main className="min-h-dvh bg-[var(--bg)]" />;
   }
 
   if (gate === "set" || gate === "locked") {
@@ -258,8 +349,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#e3e2de] pb-32">
-      <header className="sticky top-0 z-30 border-b border-[#c7c7c7] bg-[#e3e2de]/95 backdrop-blur">
+    <main className="min-h-dvh bg-[var(--bg)] pb-32">
+      <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[var(--bg-95)] backdrop-blur">
         <div className="flex h-20 items-center justify-between px-6">
           {/* The mark replaces the wordmark, at 150% of the old 24px type. */}
           <h1 className="flex items-center">
@@ -270,25 +361,45 @@ export default function Home() {
             <span className="label hidden sm:inline">
               {headlineCount} {inDoneView ? "done" : "open"}
             </span>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="text-sm font-semibold underline underline-offset-4"
-            >
-              Settings
-            </button>
-            <button
-              onClick={() => {
-                clearUnlocked();
-                setGate("locked");
-              }}
-              className="text-sm font-semibold underline underline-offset-4"
-            >
-              Lock
-            </button>
+
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-label="Menu"
+                aria-expanded={menuOpen}
+                className="flex h-10 w-10 items-center justify-center rounded-[10px] transition-colors duration-300 hover:bg-[var(--hover)]"
+              >
+                <Gear />
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 top-12 z-40 w-44 overflow-hidden rounded-[10px] border border-[var(--rule)] bg-[var(--bg)]">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowSettings(true);
+                    }}
+                    className="block w-full px-4 py-3 text-left text-sm font-semibold transition-colors duration-300 hover:bg-[var(--hover)]"
+                  >
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      clearUnlocked();
+                      setGate("locked");
+                    }}
+                    className="block w-full border-t border-[var(--rule)] px-4 py-3 text-left text-sm font-semibold transition-colors duration-300 hover:bg-[var(--hover)]"
+                  >
+                    Lock
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="no-bar flex gap-6 overflow-x-auto border-t border-[#c7c7c7] px-6 py-4">
+        <div className="no-bar flex gap-6 overflow-x-auto border-t border-[var(--rule)] px-6 py-4">
           {[{ id: "all", name: "All" }, ...lists].map((l) => {
             const active = activeList === l.id;
             return (
@@ -298,7 +409,7 @@ export default function Home() {
                 className="whitespace-nowrap text-xs font-bold uppercase transition-colors duration-300"
                 style={{
                   letterSpacing: "0.2em",
-                  color: active ? "var(--accent)" : "#7a7a7a",
+                  color: active ? "var(--accent)" : "var(--muted)",
                 }}
               >
                 {l.name}
@@ -308,7 +419,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="border-b border-[#c7c7c7] px-6 py-10">
+      <section className="border-b border-[var(--rule)] px-6 py-10">
         <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-extrabold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
           {headlineCount === 0 ? (
@@ -343,20 +454,20 @@ export default function Home() {
 
       <section className="px-6">
         {visible.length === 0 ? (
-          <p className="py-16 text-base text-[#444343]">
+          <p className="py-16 text-base text-[var(--fg-2)]">
             Nothing here yet. Add a task above, or leave a voice note.
           </p>
         ) : (
           <div className="border-t border-transparent">
             {visible.map((task, i) => (
-              <div key={task.id} className="group border-b border-[#c7c7c7] py-6">
+              <div key={task.id} className="group border-b border-[var(--rule)] py-6">
                 <div className="flex items-start gap-4">
                   <span className="idx mt-3 w-8 shrink-0">{String(i + 1).padStart(3, "0")}</span>
 
                   <button
                     onClick={() => void toggle(task)}
                     aria-label={task.done ? "Mark as not done" : "Mark as done"}
-                    className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[#141414] transition-colors duration-300"
+                    className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[var(--fg)] transition-colors duration-300"
                     style={{ background: task.done ? "var(--accent)" : "transparent" }}
                   />
 
@@ -368,7 +479,7 @@ export default function Home() {
                       aria-expanded={expandedId === task.id}
                       className="block w-full text-left text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl"
                       style={{
-                        color: task.done ? "#7a7a7a" : undefined,
+                        color: task.done ? "var(--muted)" : undefined,
                         textDecoration: task.done ? "line-through" : undefined,
                       }}
                     >
@@ -381,7 +492,7 @@ export default function Home() {
                       </span>
                       {(task.subtasks?.length ?? 0) > 0 && (
                         <span className="label">
-                          {task.subtasks!.filter((s) => s.done).length}/{task.subtasks!.length} steps
+                          {task.subtasks!.filter((s) => s.done).length}/{task.subtasks!.length} sub-tasks
                         </span>
                       )}
                       {task.note?.trim() && <span className="label">Note</span>}
@@ -407,8 +518,11 @@ export default function Home() {
                       </button>
                     </div>
 
+                  </div>
+                </div>
+
                     {expandedId === task.id && (
-                      <div className="mt-6 space-y-6 rounded-[10px] border border-[#c7c7c7] p-4">
+                      <div className="mt-6 space-y-6 rounded-[10px] border border-[var(--rule)] p-4">
                         <div>
                           <p className="label mb-2">Note</p>
                           <textarea
@@ -421,19 +535,19 @@ export default function Home() {
                         </div>
 
                         <div>
-                          <p className="label mb-2">Steps</p>
+                          <p className="label mb-2">Sub-tasks</p>
                           {(task.subtasks ?? []).map((s) => (
                             <div key={s.id} className="flex items-center gap-3 py-2">
                               <button
                                 onClick={() => void toggleSubtask(task, s.id)}
-                                aria-label={s.done ? "Mark step as not done" : "Mark step as done"}
-                                className="h-4 w-4 shrink-0 rounded-[4px] border border-[#141414] transition-colors duration-300"
+                                aria-label={s.done ? "Mark sub-task as not done" : "Mark sub-task as done"}
+                                className="h-4 w-4 shrink-0 rounded-[4px] border border-[var(--fg)] transition-colors duration-300"
                                 style={{ background: s.done ? "var(--accent)" : "transparent" }}
                               />
                               <span
                                 className="flex-1 text-base"
                                 style={{
-                                  color: s.done ? "#7a7a7a" : "#141414",
+                                  color: s.done ? "var(--muted)" : "var(--fg)",
                                   textDecoration: s.done ? "line-through" : undefined,
                                 }}
                               >
@@ -455,7 +569,7 @@ export default function Home() {
                                 setSubtaskDraft((d) => ({ ...d, [task.id]: e.target.value }))
                               }
                               onKeyDown={(e) => e.key === "Enter" && void addSubtask(task)}
-                              placeholder="add a step"
+                              placeholder="add sub-task"
                               autoCapitalize="none"
                               className="field flex-1 text-base"
                             />
@@ -485,7 +599,7 @@ export default function Home() {
                               ))}
                           </select>
                           {task.done && (
-                            <p className="mt-2 text-sm text-[#444343]">
+                            <p className="mt-2 text-sm text-[var(--fg-2)]">
                               Moving it out of Done marks it not done.
                             </p>
                           )}
@@ -496,8 +610,7 @@ export default function Home() {
                         </button>
                       </div>
                     )}
-                  </div>
-                </div>
+
               </div>
             ))}
           </div>
@@ -512,7 +625,7 @@ export default function Home() {
         )}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#c7c7c7] bg-[#e3e2de]/95 p-4 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--rule)] bg-[var(--bg-95)] p-4 backdrop-blur">
         <button onClick={() => setShowVoice(true)} className="btn-primary w-full">
           Leave a voice note
         </button>

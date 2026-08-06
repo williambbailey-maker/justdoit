@@ -58,6 +58,8 @@ export interface Settings {
   aiParsing: boolean;
   /** Keep the raw transcript of every processed voice note. */
   keepTranscripts: boolean;
+  /** "system" follows the OS setting. */
+  theme: "system" | "light" | "dark";
   /** Length of the launch animation in seconds. 0 skips it. */
   splashSeconds: number;
   /** Bumped when a stored settings object needs migrating. */
@@ -74,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: "",
   aiParsing: true,
   keepTranscripts: true,
+  theme: "system",
   splashSeconds: 2,
   v: SETTINGS_VERSION,
 };
