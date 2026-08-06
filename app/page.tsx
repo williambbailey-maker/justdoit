@@ -128,10 +128,33 @@ export default function Home() {
     return () => mq.removeEventListener("change", apply);
   }, [settings.accent, settings.theme]);
 
+  // Register the service worker, then actively check for a newer one. Without
+  // the update()/controllerchange pair an installed PWA can keep serving the
+  // build it first cached, which looks exactly like "my changes aren't live".
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
+    if (!("serviceWorker" in navigator)) return;
+
+    let reloading = false;
+    const onControllerChange = () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        void reg.update();
+        // Re-check whenever the app is brought back to the foreground.
+        const onVisible = () => document.visibilityState === "visible" && void reg.update();
+        document.addEventListener("visibilitychange", onVisible);
+        return onVisible;
+      })
+      .catch(() => undefined);
+
+    return () =>
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
 
   // Dismiss the gear menu on any click outside it.

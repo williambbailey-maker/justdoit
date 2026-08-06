@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Surfaced in Settings so the running build is identifiable at a glance.
+  env: {
+    NEXT_PUBLIC_BUILD:
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+      process.env.NEXT_PUBLIC_BUILD ??
+      "local",
+  },
   headers: async () => [
     {
       source: "/sw.js",

@@ -308,6 +308,29 @@ export default function SettingsPanel({
               Data lives in this browser only. Export before clearing site data or switching devices.
             </p>
           </Row>
+
+          <Row label="Build">
+            <p className="text-sm text-[var(--fg-2)]">
+              Running <span className="font-mono">{process.env.NEXT_PUBLIC_BUILD}</span>. If that
+              doesn't match your latest deploy, tap below to clear the cached app.
+            </p>
+            <button
+              onClick={async () => {
+                if ("serviceWorker" in navigator) {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(regs.map((r) => r.unregister()));
+                }
+                if ("caches" in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map((k) => caches.delete(k)));
+                }
+                window.location.reload();
+              }}
+              className="btn-ghost mt-4"
+            >
+              Force update
+            </button>
+          </Row>
         </div>
       </div>
     </div>
