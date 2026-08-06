@@ -1,0 +1,132 @@
+@import url("https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #e3e2de;
+  --color-cobalt: #1351aa;
+  --color-jet: #141414;
+  --color-deep: #444343;
+  --color-muted: #7a7a7a;
+  --color-rule: #c7c7c7;
+
+  --font-sans: "General Sans", "Aileron", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  --accent: #1351aa;
+  color-scheme: light;
+}
+
+/* The design system is 0px corners throughout — including native controls. */
+* {
+  border-radius: 0 !important;
+}
+
+html,
+body {
+  background: #e3e2de;
+  color: #141414;
+  font-family: "General Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* Safe-area padding so the PWA doesn't sit under the iOS home indicator. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #7a7a7a;
+}
+
+.idx {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  color: #7a7a7a;
+}
+
+.btn,
+.btn-primary,
+.btn-dark,
+.btn-ghost {
+  display: inline-block;
+  padding: 1rem 2rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+  border: 1px solid transparent;
+  transition: background-color 0.3s linear, color 0.3s linear, border-color 0.3s linear;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #e3e2de;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #141414;
+}
+
+.btn-dark {
+  background: #141414;
+  color: #e3e2de;
+}
+
+.btn-dark:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #141414;
+  border-color: #c7c7c7;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.4);
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-dark:disabled,
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid #c7c7c7;
+  background: transparent;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #141414;
+  outline: none;
+  transition: border-color 0.3s linear;
+}
+
+.field:focus {
+  border-color: var(--accent);
+}
+
+.field::placeholder {
+  color: #7a7a7a;
+}
+
+/* Hide scrollbars on the horizontal list rail without losing scroll. */
+.no-bar {
+  scrollbar-width: none;
+}
+
+.no-bar::-webkit-scrollbar {
+  display: none;
+}
