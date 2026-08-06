@@ -27,17 +27,18 @@
   color-scheme: light;
 }
 
-/* Dark — the same structure, inverted. Warm-neutral rather than pure black
-   so the cream identity still reads. */
+/* Dark — strictly black, white and grey. No hue anywhere, including the
+   accent, which becomes white so emphasis reads as contrast alone. */
 :root[data-theme="dark"] {
-  --bg: #131312;
-  --bg-95: rgb(19 19 18 / 0.95);
-  --fg: #edece8;
-  --fg-2: #b5b3ad;
-  --muted: #85837e;
-  --rule: #34332f;
-  --hover: rgb(255 255 255 / 0.07);
-  --on-accent: #0d0d0c;
+  --bg: #000000;
+  --bg-95: rgb(0 0 0 / 0.95);
+  --fg: #ffffff;
+  --fg-2: #b0b0b0;
+  --muted: #808080;
+  --rule: #333333;
+  --hover: rgb(255 255 255 / 0.1);
+  --on-accent: #000000;
+  --accent: #ffffff;
 
   color-scheme: dark;
 }

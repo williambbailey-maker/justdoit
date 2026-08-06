@@ -5,7 +5,8 @@ import { exportAll, importAll, wipeAll } from "@/lib/db";
 import { hashCode } from "@/lib/lock";
 import { List, Settings } from "@/lib/types";
 
-const ACCENTS = ["#1351AA", "var(--fg)", "#A6431F", "#1F6B47", "#6B3FA0"];
+// Literal colours, not theme variables: these are stored as the accent value.
+const ACCENTS = ["#1351AA", "#141414", "#A6431F", "#1F6B47", "#6B3FA0"];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -169,6 +170,9 @@ export default function SettingsPanel({
           </Row>
 
           <Row label="Accent">
+            <p className="mb-3 text-sm text-[var(--fg-2)]">
+              Light mode only — dark mode stays black, white and grey.
+            </p>
             <div className="flex gap-3">
               {ACCENTS.map((c) => (
                 <button

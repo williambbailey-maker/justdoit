@@ -29,51 +29,6 @@ const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice
 const SPLASH_KEY = "swoosh:splash-seconds";
 const THEME_KEY = "swoosh:theme";
 
-/**
- * Cobalt is too dim on a dark field. Raise lightness in HSL rather than
- * mixing toward white, which would wash the hue out to a pale periwinkle.
- */
-function lift(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  const [r, g, bl] = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-  const max = Math.max(r, g, bl);
-  const min = Math.min(r, g, bl);
-  const l = (max + min) / 2;
-  const d = max - min;
-
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = ((g - bl) / d) % 6;
-    else if (max === g) h = (bl - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-
-  const l2 = Math.max(l, 0.6);
-  const s2 = d === 0 ? 0 : Math.max(s, 0.7);
-
-  const c = (1 - Math.abs(2 * l2 - 1)) * s2;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const mAdj = l2 - c / 2;
-  const seg = Math.floor(h / 60) % 6;
-  const rgb = [
-    [c, x, 0],
-    [x, c, 0],
-    [0, c, x],
-    [0, x, c],
-    [x, 0, c],
-    [c, 0, x],
-  ][seg];
-
-  return `#${rgb
-    .map((v) => Math.round((v + mAdj) * 255).toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
 function Gear() {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--fg)" strokeWidth={1.8}>
@@ -153,14 +108,15 @@ export default function Home() {
     })();
   }, [load]);
 
-  // Theme and accent travel together: the accent has to be lifted on dark.
+  // Theme and accent travel together: dark forces a monochrome accent.
   useEffect(() => {
     const apply = () => {
       const dark = resolveDark(settings.theme);
       document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      // Dark is strictly monochrome, so the chosen accent applies to light only.
       document.documentElement.style.setProperty(
         "--accent",
-        dark ? lift(settings.accent) : settings.accent,
+        dark ? "#ffffff" : settings.accent,
       );
     };
     apply();
