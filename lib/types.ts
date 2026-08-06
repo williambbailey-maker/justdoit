@@ -37,7 +37,6 @@ export interface Settings {
   /** Minutes of inactivity before re-locking. 0 disables auto-lock. */
   autoLockMinutes: number;
   defaultListId: string;
-  showCompleted: boolean;
   accent: string;
   /** Optional per-device Anthropic key; the server env var takes precedence. */
   apiKey: string;
@@ -47,18 +46,22 @@ export interface Settings {
   keepTranscripts: boolean;
   /** Length of the launch animation in seconds. 0 skips it. */
   splashSeconds: number;
+  /** Bumped when a stored settings object needs migrating. */
+  v: number;
 }
+
+export const SETTINGS_VERSION = 2;
 
 export const DEFAULT_SETTINGS: Settings = {
   codeHash: null,
   autoLockMinutes: 60,
   defaultListId: "inbox",
-  showCompleted: false,
   accent: "#1351AA",
   apiKey: "",
   aiParsing: true,
   keepTranscripts: true,
-  splashSeconds: 4,
+  splashSeconds: 2,
+  v: SETTINGS_VERSION,
 };
 
 export const DEFAULT_LISTS: List[] = [

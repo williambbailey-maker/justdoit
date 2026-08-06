@@ -39,7 +39,7 @@ export default function Home() {
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [splashSeconds, setSplashSeconds] = useState(4);
+  const [splashSeconds, setSplashSeconds] = useState(2);
   const [splashDone, setSplashDone] = useState(false);
 
   // Read the splash preference on mount rather than during render, so the
@@ -49,7 +49,7 @@ export default function Home() {
     // which would read as "splash off" on every first launch.
     const raw = localStorage.getItem(SPLASH_KEY);
     const parsed = raw === null ? NaN : Number(raw);
-    const secs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 4;
+    const secs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 2;
     setSplashSeconds(secs);
     if (secs === 0) setSplashDone(true);
     setMounted(true);
@@ -171,18 +171,28 @@ export default function Home() {
   }
 
   const visible = useMemo(() => {
+    // Nothing is hidden here — done tasks drop to the bottom and stay until
+    // they are explicitly deleted.
     return tasks
       .filter((t) => (activeList === "all" ? true : t.listId === activeList))
-      .filter((t) => (settings.showCompleted ? true : !t.done))
       .sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
         if (a.due && b.due && a.due !== b.due) return a.due < b.due ? -1 : 1;
         if (a.due !== b.due) return a.due ? -1 : 1;
         return b.createdAt - a.createdAt;
       });
-  }, [tasks, activeList, settings.showCompleted]);
+  }, [tasks, activeList]);
 
   const openCount = tasks.filter((t) => !t.done).length;
+  const doneVisible = visible.filter((t) => t.done);
+
+  async function clearCompleted() {
+    if (doneVisible.length === 0) return;
+    if (!confirm(`Delete ${doneVisible.length} completed task${doneVisible.length === 1 ? "" : "s"}?`)) return;
+    const ids = new Set(doneVisible.map((t) => t.id));
+    await Promise.all([...ids].map((id) => db.deleteTask(id)));
+    setTasks((prev) => prev.filter((t) => !ids.has(t.id)));
+  }
   const listName = activeList === "all" ? "Everything" : (lists.find((l) => l.id === activeList)?.name ?? "");
 
   // The splash covers the whole launch, including the IndexedDB read behind it.
@@ -294,16 +304,17 @@ export default function Home() {
                   />
 
                   <div className="min-w-0 flex-1">
-                    <button
-                      onClick={() => void toggle(task)}
-                      className="block w-full text-left text-3xl font-bold leading-[1.05] tracking-[-0.02em] transition-colors duration-300 group-hover:text-[var(--accent)] sm:text-4xl"
+                    {/* Text only — completing is the checkbox's job, so a stray
+                        tap on the title can't tick a task off. */}
+                    <p
+                      className="block w-full text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl"
                       style={{
                         color: task.done ? "#7a7a7a" : undefined,
                         textDecoration: task.done ? "line-through" : undefined,
                       }}
                     >
                       {task.title}
-                    </button>
+                    </p>
 
                     {task.note && <p className="mt-2 text-sm text-[#444343]">{task.note}</p>}
 
@@ -336,6 +347,14 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {doneVisible.length > 0 && (
+          <div className="py-8">
+            <button onClick={() => void clearCompleted()} className="label underline underline-offset-4">
+              Clear {doneVisible.length} completed
+            </button>
           </div>
         )}
       </section>

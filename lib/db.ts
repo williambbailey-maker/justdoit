@@ -1,4 +1,12 @@
-import { DEFAULT_LISTS, DEFAULT_SETTINGS, List, Settings, Task, VoiceNote } from "./types";
+import {
+  DEFAULT_LISTS,
+  DEFAULT_SETTINGS,
+  List,
+  SETTINGS_VERSION,
+  Settings,
+  Task,
+  VoiceNote,
+} from "./types";
 
 // Deliberately unchanged through the rename to swoosh — renaming the store
 // would orphan every task and list already saved on the device.
@@ -66,7 +74,19 @@ export async function getSettings(): Promise<Settings> {
   const row = await tx<{ key: string; value: Settings } | undefined>("meta", "readonly", (s) =>
     s.get("settings"),
   );
-  return { ...DEFAULT_SETTINGS, ...(row?.value ?? {}) };
+  const stored = { ...DEFAULT_SETTINGS, ...(row?.value ?? {}) };
+  // Read the version off the raw row: the defaults spread would otherwise
+  // stamp the current version onto an old object and skip the migration.
+  const storedVersion = row === undefined ? SETTINGS_VERSION : (row.value?.v ?? 1);
+
+  // v2 shortened the launch animation. Settings saved before that carry the
+  // old 4s value, so bring them forward once rather than stranding them.
+  if (storedVersion < SETTINGS_VERSION) {
+    const migrated = { ...stored, splashSeconds: 2, v: SETTINGS_VERSION };
+    await saveSettings(migrated);
+    return migrated;
+  }
+  return stored;
 }
 
 export const saveSettings = (value: Settings) => put("meta", { key: "settings", value });

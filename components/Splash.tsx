@@ -35,7 +35,9 @@ export default function Splash({ seconds, onDone }: { seconds: number; onDone: (
     >
       <div
         style={{
-          animation: reduced ? undefined : `swoosh-spin ${seconds}s linear`,
+          // Fixed spin rate rather than one tied to the duration, so the mark
+          // reads the same whether the splash runs 2 seconds or 6.
+          animation: reduced ? undefined : "swoosh-spin 1.4s linear infinite",
           transformOrigin: "50% 50%",
         }}
       >
@@ -55,7 +57,7 @@ export default function Splash({ seconds, onDone }: { seconds: number; onDone: (
       <style>{`
         @keyframes swoosh-spin {
           from { transform: rotate(0deg); }
-          to { transform: rotate(720deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

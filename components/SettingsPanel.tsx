@@ -192,18 +192,6 @@ export default function SettingsPanel({
             />
           </Row>
 
-          <Row label="Completed tasks">
-            <label className="flex items-center justify-between gap-4">
-              <span className="text-base text-[#444343]">Show them in the list</span>
-              <input
-                type="checkbox"
-                checked={settings.showCompleted}
-                onChange={(e) => patch({ showCompleted: e.target.checked })}
-                className="h-6 w-6 shrink-0 accent-[var(--accent)]"
-              />
-            </label>
-          </Row>
-
           <Row label="Transcripts">
             <label className="flex items-center justify-between gap-4">
               <span className="text-base text-[#444343]">Keep the raw text of each voice note</span>
