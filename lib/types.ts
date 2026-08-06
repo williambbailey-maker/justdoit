@@ -20,6 +20,8 @@ export interface Task {
   completedAt?: number;
   /** List the task sat in before completion, so un-checking can restore it. */
   prevListId?: string;
+  /** YYYY-MM-DD the task was tagged for today; stale tags drop off overnight. */
+  todayOn?: string;
   /** Set when the task came out of a voice note. */
   source?: "voice";
 }
@@ -36,6 +38,12 @@ export interface List {
 
 /** Completed tasks are moved here automatically. */
 export const DONE_LIST_ID = "done";
+
+/**
+ * A view, not a home: tasks tagged for today appear here *and* stay in their
+ * own bucket. Nothing is ever stored with this as its listId.
+ */
+export const TODAY_LIST_ID = "today";
 
 export interface VoiceNote {
   id: string;
@@ -85,6 +93,7 @@ export const DEFAULT_LISTS: List[] = [
   { id: "inbox", name: "Inbox", keywords: [], order: 0 },
   { id: "work", name: "Work", keywords: ["work", "meeting", "email", "client", "deck"], order: 1 },
   { id: "personal", name: "Personal", keywords: ["home", "buy", "call", "pick up", "grocery"], order: 2 },
+  { id: TODAY_LIST_ID, name: "Today", keywords: [], order: -1, system: true },
   { id: DONE_LIST_ID, name: "Done", keywords: [], order: 999, system: true },
 ];
 

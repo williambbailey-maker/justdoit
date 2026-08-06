@@ -9,7 +9,15 @@ import VoiceSheet from "@/components/VoiceSheet";
 import * as db from "@/lib/db";
 import { clearUnlocked, hashCode, isUnlocked, markUnlocked, touchUnlocked } from "@/lib/lock";
 import { localParse } from "@/lib/localParse";
-import { DEFAULT_SETTINGS, DONE_LIST_ID, List, ParsedTask, Settings, Task } from "@/lib/types";
+import {
+  DEFAULT_SETTINGS,
+  DONE_LIST_ID,
+  List,
+  ParsedTask,
+  Settings,
+  Task,
+  TODAY_LIST_ID,
+} from "@/lib/types";
 
 type Gate = "loading" | "set" | "locked" | "open";
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -84,9 +92,13 @@ function resolveDark(theme: Settings["theme"]): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+/** Today's date in the user's own timezone, as YYYY-MM-DD. */
+function todayKey(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function dueLabel(iso: string): string {
-  const today = new Date();
-  const t = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const t = todayKey();
   if (iso === t) return "Today";
   if (iso < t) return "Overdue";
   const d = new Date(`${iso}T12:00:00`);
@@ -293,6 +305,14 @@ export default function Home() {
   const removeSubtask = (task: Task, id: string) =>
     patchTask(task, { subtasks: (task.subtasks ?? []).filter((s) => s.id !== id) });
 
+  /**
+   * Tagging for today doesn't move or duplicate the task — it surfaces the
+   * same task in the Today view while it stays in its own bucket, so ticking
+   * it off in one place is ticking it off in both.
+   */
+  const toggleToday = (task: Task) =>
+    patchTask(task, { todayOn: task.todayOn === todayKey() ? undefined : todayKey() });
+
   /** Moving a task out of Done necessarily means it is no longer done. */
   const rebucket = (task: Task, listId: string) =>
     task.done
@@ -312,7 +332,12 @@ export default function Home() {
     // Nothing is deleted here — completed tasks live in the Done bucket and
     // stay there until explicitly removed. "All" means all the live lists.
     return tasks
-      .filter((t) => (activeList === "all" ? t.listId !== DONE_LIST_ID : t.listId === activeList))
+      .filter((t) => {
+        if (t.listId === DONE_LIST_ID && activeList !== DONE_LIST_ID) return false;
+        if (activeList === "all") return true;
+        if (activeList === TODAY_LIST_ID) return t.todayOn === todayKey();
+        return t.listId === activeList;
+      })
       .sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
         if (a.due && b.due && a.due !== b.due) return a.due < b.due ? -1 : 1;
@@ -496,6 +521,23 @@ export default function Home() {
                         </span>
                       )}
                       {task.note?.trim() && <span className="label">Note</span>}
+
+                      <button
+                        onClick={() => void toggleToday(task)}
+                        aria-pressed={task.todayOn === todayKey()}
+                        className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
+                        style={
+                          task.todayOn === todayKey()
+                            ? {
+                                borderColor: "var(--accent)",
+                                color: "var(--on-accent)",
+                                background: "var(--accent)",
+                              }
+                            : { borderColor: "var(--rule)" }
+                        }
+                      >
+                        Today
+                      </button>
                       {task.due && (
                         <span
                           className="label"

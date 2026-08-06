@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   DONE_LIST_ID,
   List,
+  TODAY_LIST_ID,
   SETTINGS_VERSION,
   Settings,
   Task,
@@ -60,13 +61,14 @@ export const getLists = async (): Promise<List[]> => {
   const lists = await all<List>("lists");
   if (lists.length === 0) {
     await Promise.all(DEFAULT_LISTS.map((l) => put("lists", l)));
-    return [...DEFAULT_LISTS];
+    return [...DEFAULT_LISTS].sort((a, b) => a.order - b.order);
   }
-  // Devices set up before the Done bucket existed won't have it yet.
-  if (!lists.some((l) => l.id === DONE_LIST_ID)) {
-    const done = DEFAULT_LISTS.find((l) => l.id === DONE_LIST_ID)!;
-    await put("lists", done);
-    lists.push(done);
+  // Devices set up before the system buckets existed won't have them yet.
+  for (const id of [TODAY_LIST_ID, DONE_LIST_ID]) {
+    if (lists.some((l) => l.id === id)) continue;
+    const missing = DEFAULT_LISTS.find((l) => l.id === id)!;
+    await put("lists", missing);
+    lists.push(missing);
   }
   return lists.sort((a, b) => a.order - b.order);
 };
