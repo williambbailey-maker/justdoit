@@ -421,7 +421,7 @@ export default function Home() {
               <button
                 key={l.id}
                 onClick={() => setActiveList(l.id)}
-                className="whitespace-nowrap text-[1.125rem] font-bold uppercase transition-colors duration-300"
+                className="whitespace-nowrap text-[1.125rem] font-medium uppercase transition-colors duration-300"
                 style={{
                   letterSpacing: "0.2em",
                   color: active ? "var(--accent)" : "var(--muted)",
@@ -436,7 +436,7 @@ export default function Home() {
 
       <section className="border-b border-[var(--rule)] px-6 py-10">
         <p className="section-title">{listName}</p>
-        <h2 className="mt-4 text-6xl font-extrabold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
+        <h2 className="mt-4 text-6xl font-semibold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
           {headlineCount === 0 ? (
             <>
               {inDoneView ? "Nothing" : "All"}
@@ -492,7 +492,7 @@ export default function Home() {
                     <button
                       onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
                       aria-expanded={expandedId === task.id}
-                      className="block w-full text-left text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl"
+                      className="block w-full text-left text-3xl font-medium leading-[1.05] tracking-[-0.02em] sm:text-4xl"
                       style={{
                         color: task.done ? "var(--muted)" : undefined,
                         textDecoration: task.done ? "line-through" : undefined,

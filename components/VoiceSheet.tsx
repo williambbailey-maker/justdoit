@@ -154,7 +154,7 @@ export default function VoiceSheet({
 
         {stage !== "review" && (
           <>
-            <h2 className="text-5xl font-extrabold leading-[0.9] tracking-[-0.03em] sm:text-6xl">
+            <h2 className="text-5xl font-semibold leading-[0.9] tracking-[-0.03em] sm:text-6xl">
               {stage === "listening" ? (
                 <>
                   Listening<span style={{ color: "var(--accent)" }}>.</span>
@@ -198,7 +198,7 @@ export default function VoiceSheet({
 
         {stage === "review" && (
           <>
-            <h2 className="text-5xl font-extrabold leading-[0.9] tracking-[-0.03em] sm:text-6xl">
+            <h2 className="text-5xl font-semibold leading-[0.9] tracking-[-0.03em] sm:text-6xl">
               {draft.length} task{draft.length === 1 ? "" : "s"}
             </h2>
             <p className="mt-4 max-w-md text-base text-[var(--fg-2)]">
@@ -215,7 +215,7 @@ export default function VoiceSheet({
                         value={t.title}
                         onChange={(e) => update(i, { title: e.target.value })}
                         autoCapitalize="none"
-                        className="w-full border-none bg-transparent p-0 text-2xl font-bold leading-tight tracking-[-0.02em] outline-none"
+                        className="w-full border-none bg-transparent p-0 text-2xl font-medium leading-tight tracking-[-0.02em] outline-none"
                       />
                       {t.note && <p className="mt-2 text-sm text-[var(--fg-2)]">{t.note}</p>}
 
@@ -223,7 +223,7 @@ export default function VoiceSheet({
                         <select
                           value={t.listId}
                           onChange={(e) => update(i, { listId: e.target.value })}
-                          className="rounded-[8px] border border-[var(--rule)] bg-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[var(--fg-2)]"
+                          className="rounded-[8px] border border-[var(--rule)] bg-transparent px-3 py-2 text-xs font-medium uppercase tracking-[0.15em] text-[var(--fg-2)]"
                         >
                           {lists.map((l) => (
                             <option key={l.id} value={l.id}>
@@ -241,7 +241,7 @@ export default function VoiceSheet({
 
                         <button
                           onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}
-                          className="ml-auto text-xs font-bold uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
+                          className="ml-auto text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
                         >
                           Remove
                         </button>

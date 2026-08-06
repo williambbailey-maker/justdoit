@@ -71,7 +71,7 @@ export default function LockScreen({
       <div className="flex flex-col items-center gap-10">
         <div className="text-center">
           <h1
-            className="text-6xl font-extrabold leading-[0.85] tracking-[-0.04em] sm:text-7xl"
+            className="text-6xl font-semibold leading-[0.85] tracking-[-0.04em] sm:text-7xl"
             style={{ letterSpacing: "-0.04em" }}
           >
             {heading}
@@ -106,7 +106,7 @@ export default function LockScreen({
                     ? setCode((c) => c.slice(0, -1))
                     : setCode((c) => (c.length < 4 ? c + k : c))
                 }
-                className="border-b border-r border-[var(--rule)] py-5 text-2xl font-bold transition-colors duration-300 hover:bg-[var(--hover)] active:bg-[var(--hover)]"
+                className="border-b border-r border-[var(--rule)] py-5 text-2xl font-medium transition-colors duration-300 hover:bg-[var(--hover)] active:bg-[var(--hover)]"
               >
                 {k === "del" ? "←" : k}
               </button>

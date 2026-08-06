@@ -72,7 +72,7 @@ export default function SettingsPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 pb-16">
-        <h2 className="py-10 text-6xl font-extrabold leading-[0.85] tracking-[-0.04em]">
+        <h2 className="py-10 text-6xl font-semibold leading-[0.85] tracking-[-0.04em]">
           Make it<br />
           <span style={{ color: "var(--accent)" }}>yours</span>
         </h2>
@@ -89,12 +89,12 @@ export default function SettingsPanel({
                       value={l.name}
                       onChange={(e) => onSaveList({ ...l, name: e.target.value })}
                       autoCapitalize="none"
-                      className="flex-1 border-none bg-transparent p-0 text-xl font-bold outline-none"
+                      className="flex-1 border-none bg-transparent p-0 text-xl font-medium outline-none"
                     />
                     {!l.system && lists.length > 1 && (
                       <button
                         onClick={() => onDeleteList(l.id)}
-                        className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
+                        className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--muted)] underline underline-offset-4"
                       >
                         Delete
                       </button>
