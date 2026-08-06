@@ -18,7 +18,6 @@ import {
   Task,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
-  RUNDOWN_LIST_ID,
 } from "@/lib/types";
 
 type Gate = "loading" | "set" | "locked" | "open";
@@ -339,30 +338,7 @@ export default function Home() {
 
   // Counts follow whatever bucket you're looking at; only "All" is global.
   const inDoneView = activeList === DONE_LIST_ID;
-  const inRundown = activeList === RUNDOWN_LIST_ID;
 
-  const STALE_DAYS = 5;
-
-  /** The three Rundown groups, all derived — nothing extra is stored. */
-  const rundown = useMemo(() => {
-    const today = todayKey();
-    const y = new Date();
-    y.setDate(y.getDate() - 1);
-    const yesterday = dayKey(y);
-    const staleBefore = Date.now() - STALE_DAYS * 86_400_000;
-
-    return {
-      // Planned for today — exactly what was tagged Tomorrow yesterday.
-      onDeck: tasks.filter((t) => !t.done && t.plannedOn === today),
-      // completedAt is a timestamp, so compare on its local calendar day.
-      yesterday: tasks.filter(
-        (t) => t.done && t.completedAt && dayKey(new Date(t.completedAt)) === yesterday,
-      ),
-      stale: tasks
-        .filter((t) => !t.done && t.createdAt < staleBefore)
-        .sort((a, b) => a.createdAt - b.createdAt),
-    };
-  }, [tasks]);
   const headlineCount = inDoneView ? visible.length : visible.filter((t) => !t.done).length;
   const doneVisible = visible.filter((t) => t.done);
 
@@ -560,32 +536,6 @@ export default function Home() {
     </div>
   );
 
-  const rundownGroup = (title: string, blurb: string, items: Task[]) => (
-    <div className="border-t border-[var(--rule)] pt-6">
-      <div className="flex items-baseline gap-3">
-        <p className="label">{title}</p>
-        <span className="idx">{items.length}</span>
-      </div>
-      {items.length === 0 ? (
-        <p className="py-6 text-base text-[var(--fg-2)]">{blurb}</p>
-      ) : (
-        <div className="mt-2">{items.map(taskRow)}</div>
-      )}
-    </div>
-  );
-
-  const rundownView = (
-    <div className="space-y-10 pb-8">
-      {rundownGroup("On deck today", "Nothing planned for today yet.", rundown.onDeck)}
-      {rundownGroup("Finished yesterday", "Nothing was ticked off yesterday.", rundown.yesterday)}
-      {rundownGroup(
-        `Older than ${STALE_DAYS} days`,
-        "Nothing has been sitting around. Good.",
-        rundown.stale,
-      )}
-    </div>
-  );
-
   if (mounted && !splashDone) {
     return <Splash seconds={splashSeconds} onDone={() => setSplashDone(true)} />;
   }
@@ -609,8 +559,7 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-5">
             <span className="label hidden sm:inline">
-              {inRundown ? rundown.onDeck.length : headlineCount}{" "}
-              {inRundown ? "today" : inDoneView ? "done" : "open"}
+              {headlineCount} {inDoneView ? "done" : "open"}
             </span>
 
             <div className="relative" ref={menuRef}>
@@ -673,11 +622,7 @@ export default function Home() {
       <section className="border-b border-[var(--rule)] px-6 py-10">
         <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-semibold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
-          {inRundown ? (
-            <>
-              The<span style={{ color: "var(--accent)" }}>&nbsp;rundown</span>
-            </>
-          ) : headlineCount === 0 ? (
+          {headlineCount === 0 ? (
             <>
               {inDoneView ? "Nothing" : "All"}
               <span style={{ color: "var(--accent)" }}>&nbsp;{inDoneView ? "yet" : "clear"}</span>
@@ -708,9 +653,7 @@ export default function Home() {
       </section>
 
       <section className="px-6">
-        {activeList === RUNDOWN_LIST_ID ? (
-          rundownView
-        ) : visible.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="py-16 text-base text-[var(--fg-2)]">
             Nothing here yet. Add a task above, or leave a voice note.
           </p>
@@ -718,7 +661,7 @@ export default function Home() {
           <div className="border-t border-transparent">{visible.map(taskRow)}</div>
         )}
 
-        {doneVisible.length > 0 && activeList !== RUNDOWN_LIST_ID && (
+        {doneVisible.length > 0 && (
           <div className="py-8">
             <button onClick={() => void clearCompleted()} className="label underline underline-offset-4">
               Clear {doneVisible.length} completed

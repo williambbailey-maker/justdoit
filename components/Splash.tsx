@@ -51,7 +51,7 @@ export default function Splash({ seconds, onDone }: { seconds: number; onDone: (
         className="mt-10 text-4xl font-semibold lowercase text-white"
         style={{ letterSpacing: "-0.04em" }}
       >
-        just do it
+        just do it.
       </p>
 
       <style>{`

@@ -5,7 +5,6 @@ import {
   List,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
-  RUNDOWN_LIST_ID,
   SETTINGS_VERSION,
   Settings,
   Task,
@@ -64,14 +63,25 @@ export const getTasks = async (): Promise<Task[]> => {
 export const saveTask = (t: Task) => put("tasks", t);
 export const deleteTask = (id: string) => del("tasks", id);
 
+/** System lists that shipped once and have since been withdrawn. Their rows
+ *  linger in IndexedDB, so they are swept on read rather than left as dead
+ *  tabs in the rail. */
+const RETIRED_LIST_IDS = ["rundown"];
+
 export const getLists = async (): Promise<List[]> => {
-  const lists = await all<List>("lists");
+  let lists = await all<List>("lists");
+
+  const retired = lists.filter((l) => RETIRED_LIST_IDS.includes(l.id));
+  if (retired.length) {
+    await Promise.all(retired.map((l) => del("lists", l.id)));
+    lists = lists.filter((l) => !RETIRED_LIST_IDS.includes(l.id));
+  }
   if (lists.length === 0) {
     await Promise.all(DEFAULT_LISTS.map((l) => put("lists", l)));
     return [...DEFAULT_LISTS].sort((a, b) => a.order - b.order);
   }
   // Devices set up before the system buckets existed won't have them yet.
-  for (const id of [TODAY_LIST_ID, TOMORROW_LIST_ID, RUNDOWN_LIST_ID, DONE_LIST_ID]) {
+  for (const id of [TODAY_LIST_ID, TOMORROW_LIST_ID, DONE_LIST_ID]) {
     if (lists.some((l) => l.id === id)) continue;
     const missing = DEFAULT_LISTS.find((l) => l.id === id)!;
     await put("lists", missing);
