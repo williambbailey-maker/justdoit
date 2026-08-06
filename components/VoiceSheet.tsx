@@ -190,6 +190,7 @@ export default function VoiceSheet({
                   ? 'Tap record, or type here. One task per line — say "new task" to start a new line.'
                   : "Speech recognition isn't supported here — type the note, one task per line."
               }
+              autoCapitalize="none"
               className="field mt-8 min-h-48 resize-none text-lg leading-relaxed"
             />
           </>
@@ -213,6 +214,7 @@ export default function VoiceSheet({
                       <input
                         value={t.title}
                         onChange={(e) => update(i, { title: e.target.value })}
+                        autoCapitalize="none"
                         className="w-full border-none bg-transparent p-0 text-2xl font-bold leading-tight tracking-[-0.02em] outline-none"
                       />
                       {t.note && <p className="mt-2 text-sm text-[#444343]">{t.note}</p>}

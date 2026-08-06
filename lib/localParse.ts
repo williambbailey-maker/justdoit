@@ -71,9 +71,10 @@ export function localParse(
       const withoutLead = segment.replace(LEAD, "");
       const { due, cleaned: afterDue } = extractDue(withoutLead);
       const { priority, cleaned } = extractPriority(afterDue);
+      // Left exactly as spoken/typed — titles stay lowercase by design.
       const title = cleaned.replace(/[.,;]+$/, "").trim();
       return {
-        title: title.charAt(0).toUpperCase() + title.slice(1),
+        title,
         listId: routeList(segment, lists, defaultListId),
         due,
         priority,

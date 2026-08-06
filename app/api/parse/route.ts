@@ -75,6 +75,7 @@ ${
 }
 - Do not invent tasks. If the note is just a thought with no action, return an empty tasks array.
 - Titles are short and imperative. Strip filler like "I need to" or "remind me to".
+- Write titles and notes in all lowercase, including proper nouns — the app is styled that way.
 - listId must be exactly one of the ids above. When nothing fits, use the first list.
 - due is YYYY-MM-DD, or an empty string when no date was spoken. Never guess a date.
 - priority is "high" only when the speaker signals urgency; otherwise "none" unless they clearly de-prioritize it ("low").

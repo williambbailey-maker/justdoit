@@ -1,9 +1,16 @@
 export type Priority = "none" | "low" | "med" | "high";
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
   note?: string;
+  subtasks?: Subtask[];
   listId: string;
   done: boolean;
   priority: Priority;

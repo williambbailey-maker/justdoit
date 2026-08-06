@@ -87,6 +87,7 @@ export default function SettingsPanel({
                     <input
                       value={l.name}
                       onChange={(e) => onSaveList({ ...l, name: e.target.value })}
+                      autoCapitalize="none"
                       className="flex-1 border-none bg-transparent p-0 text-xl font-bold outline-none"
                     />
                     {!l.system && lists.length > 1 && (
@@ -106,7 +107,8 @@ export default function SettingsPanel({
                         keywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean),
                       })
                     }
-                    placeholder="Routing keywords, comma separated"
+                    placeholder="routing keywords, comma separated"
+                    autoCapitalize="none"
                     className="mt-3 w-full border-none bg-transparent p-0 text-sm text-[#444343] outline-none"
                   />
                 </div>
@@ -116,7 +118,8 @@ export default function SettingsPanel({
                 <input
                   value={newList}
                   onChange={(e) => setNewList(e.target.value)}
-                  placeholder="New list name"
+                  placeholder="new list name"
+                  autoCapitalize="none"
                   className="field flex-1"
                 />
                 <button

@@ -37,6 +37,8 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [activeList, setActiveList] = useState<string>("all");
   const [quick, setQuick] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -174,7 +176,37 @@ export default function Home() {
   async function remove(id: string) {
     await db.deleteTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setExpandedId((cur) => (cur === id ? null : cur));
   }
+
+  async function patchTask(task: Task, patch: Partial<Task>) {
+    const next = { ...task, ...patch };
+    setTasks((prev) => prev.map((t) => (t.id === next.id ? next : t)));
+    await db.saveTask(next);
+  }
+
+  const addSubtask = async (task: Task) => {
+    const title = (subtaskDraft[task.id] ?? "").trim();
+    if (!title) return;
+    setSubtaskDraft((d) => ({ ...d, [task.id]: "" }));
+    await patchTask(task, {
+      subtasks: [...(task.subtasks ?? []), { id: uid(), title, done: false }],
+    });
+  };
+
+  const toggleSubtask = (task: Task, id: string) =>
+    patchTask(task, {
+      subtasks: (task.subtasks ?? []).map((s) => (s.id === id ? { ...s, done: !s.done } : s)),
+    });
+
+  const removeSubtask = (task: Task, id: string) =>
+    patchTask(task, { subtasks: (task.subtasks ?? []).filter((s) => s.id !== id) });
+
+  /** Moving a task out of Done necessarily means it is no longer done. */
+  const rebucket = (task: Task, listId: string) =>
+    task.done
+      ? patchTask(task, { listId, done: false, completedAt: undefined, prevListId: undefined })
+      : patchTask(task, { listId });
 
   async function submitQuick() {
     const text = quick.trim();
@@ -198,7 +230,9 @@ export default function Home() {
       });
   }, [tasks, activeList]);
 
-  const openCount = tasks.filter((t) => !t.done).length;
+  // Counts follow whatever bucket you're looking at; only "All" is global.
+  const inDoneView = activeList === DONE_LIST_ID;
+  const headlineCount = inDoneView ? visible.length : visible.filter((t) => !t.done).length;
   const doneVisible = visible.filter((t) => t.done);
 
   async function clearCompleted() {
@@ -234,7 +268,7 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-5">
             <span className="label hidden sm:inline">
-              {openCount} open
+              {headlineCount} {inDoneView ? "done" : "open"}
             </span>
             <button
               onClick={() => setShowSettings(true)}
@@ -277,14 +311,17 @@ export default function Home() {
       <section className="border-b border-[#c7c7c7] px-6 py-10">
         <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-extrabold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
-          {openCount === 0 ? (
+          {headlineCount === 0 ? (
             <>
-              All<span style={{ color: "var(--accent)" }}>&nbsp;clear</span>
+              {inDoneView ? "Nothing" : "All"}
+              <span style={{ color: "var(--accent)" }}>&nbsp;{inDoneView ? "yet" : "clear"}</span>
             </>
           ) : (
             <>
-              {openCount}
-              <span style={{ color: "var(--accent)" }}>&nbsp;to&nbsp;go</span>
+              {headlineCount}
+              <span style={{ color: "var(--accent)" }}>
+                &nbsp;{inDoneView ? "done" : "to go"}
+              </span>
             </>
           )}
         </h2>
@@ -294,7 +331,8 @@ export default function Home() {
             value={quick}
             onChange={(e) => setQuick(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void submitQuick()}
-            placeholder="Add a task…"
+            placeholder="add a task…"
+            autoCapitalize="none"
             className="field flex-1"
           />
           <button onClick={() => void submitQuick()} disabled={!quick.trim()} className="btn-dark">
@@ -323,24 +361,30 @@ export default function Home() {
                   />
 
                   <div className="min-w-0 flex-1">
-                    {/* Text only — completing is the checkbox's job, so a stray
-                        tap on the title can't tick a task off. */}
-                    <p
-                      className="block w-full text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl"
+                    {/* Tapping opens the detail pane. Completing stays with the
+                        checkbox, so a stray tap can't tick a task off. */}
+                    <button
+                      onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                      aria-expanded={expandedId === task.id}
+                      className="block w-full text-left text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl"
                       style={{
                         color: task.done ? "#7a7a7a" : undefined,
                         textDecoration: task.done ? "line-through" : undefined,
                       }}
                     >
                       {task.title}
-                    </p>
-
-                    {task.note && <p className="mt-2 text-sm text-[#444343]">{task.note}</p>}
+                    </button>
 
                     <div className="mt-3 flex flex-wrap items-center gap-4">
                       <span className="label">
                         {lists.find((l) => l.id === task.listId)?.name ?? "Inbox"}
                       </span>
+                      {(task.subtasks?.length ?? 0) > 0 && (
+                        <span className="label">
+                          {task.subtasks!.filter((s) => s.done).length}/{task.subtasks!.length} steps
+                        </span>
+                      )}
+                      {task.note?.trim() && <span className="label">Note</span>}
                       {task.due && (
                         <span
                           className="label"
@@ -356,12 +400,102 @@ export default function Home() {
                       )}
                       {task.source === "voice" && <span className="label">Voice</span>}
                       <button
-                        onClick={() => void remove(task.id)}
+                        onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
                         className="label ml-auto underline underline-offset-4"
                       >
-                        Delete
+                        {expandedId === task.id ? "Close" : "Details"}
                       </button>
                     </div>
+
+                    {expandedId === task.id && (
+                      <div className="mt-6 space-y-6 rounded-[10px] border border-[#c7c7c7] p-4">
+                        <div>
+                          <p className="label mb-2">Note</p>
+                          <textarea
+                            value={task.note ?? ""}
+                            onChange={(e) => void patchTask(task, { note: e.target.value })}
+                            placeholder="anything worth remembering"
+                            autoCapitalize="none"
+                            className="field min-h-24 resize-none text-base"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="label mb-2">Steps</p>
+                          {(task.subtasks ?? []).map((s) => (
+                            <div key={s.id} className="flex items-center gap-3 py-2">
+                              <button
+                                onClick={() => void toggleSubtask(task, s.id)}
+                                aria-label={s.done ? "Mark step as not done" : "Mark step as done"}
+                                className="h-4 w-4 shrink-0 rounded-[4px] border border-[#141414] transition-colors duration-300"
+                                style={{ background: s.done ? "var(--accent)" : "transparent" }}
+                              />
+                              <span
+                                className="flex-1 text-base"
+                                style={{
+                                  color: s.done ? "#7a7a7a" : "#141414",
+                                  textDecoration: s.done ? "line-through" : undefined,
+                                }}
+                              >
+                                {s.title}
+                              </span>
+                              <button
+                                onClick={() => void removeSubtask(task, s.id)}
+                                className="label underline underline-offset-4"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+
+                          <div className="mt-2 flex gap-3">
+                            <input
+                              value={subtaskDraft[task.id] ?? ""}
+                              onChange={(e) =>
+                                setSubtaskDraft((d) => ({ ...d, [task.id]: e.target.value }))
+                              }
+                              onKeyDown={(e) => e.key === "Enter" && void addSubtask(task)}
+                              placeholder="add a step"
+                              autoCapitalize="none"
+                              className="field flex-1 text-base"
+                            />
+                            <button
+                              onClick={() => void addSubtask(task)}
+                              disabled={!(subtaskDraft[task.id] ?? "").trim()}
+                              className="btn-ghost"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="label mb-2">Bucket</p>
+                          <select
+                            value={task.done ? (task.prevListId ?? settings.defaultListId) : task.listId}
+                            onChange={(e) => void rebucket(task, e.target.value)}
+                            className="field text-base"
+                          >
+                            {lists
+                              .filter((l) => !l.system)
+                              .map((l) => (
+                                <option key={l.id} value={l.id}>
+                                  {l.name}
+                                </option>
+                              ))}
+                          </select>
+                          {task.done && (
+                            <p className="mt-2 text-sm text-[#444343]">
+                              Moving it out of Done marks it not done.
+                            </p>
+                          )}
+                        </div>
+
+                        <button onClick={() => void remove(task.id)} className="btn-ghost w-full">
+                          Delete task
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
