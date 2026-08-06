@@ -4,6 +4,7 @@ import {
   DONE_LIST_ID,
   List,
   TODAY_LIST_ID,
+  TOMORROW_LIST_ID,
   SETTINGS_VERSION,
   Settings,
   Task,
@@ -53,7 +54,12 @@ const all = <T>(store: StoreName) => tx<T[]>(store, "readonly", (s) => s.getAll(
 const put = <T>(store: StoreName, value: T) => tx(store, "readwrite", (s) => s.put(value));
 const del = (store: StoreName, id: string) => tx(store, "readwrite", (s) => s.delete(id));
 
-export const getTasks = () => all<Task>("tasks");
+export const getTasks = async (): Promise<Task[]> => {
+  const tasks = await all<Task>("tasks");
+  // todayOn predates the Tomorrow view; fold it into plannedOn on read so
+  // existing tags keep working without a write migration.
+  return tasks.map((t) => (t.todayOn && !t.plannedOn ? { ...t, plannedOn: t.todayOn } : t));
+};
 export const saveTask = (t: Task) => put("tasks", t);
 export const deleteTask = (id: string) => del("tasks", id);
 
@@ -64,7 +70,7 @@ export const getLists = async (): Promise<List[]> => {
     return [...DEFAULT_LISTS].sort((a, b) => a.order - b.order);
   }
   // Devices set up before the system buckets existed won't have them yet.
-  for (const id of [TODAY_LIST_ID, DONE_LIST_ID]) {
+  for (const id of [TODAY_LIST_ID, TOMORROW_LIST_ID, DONE_LIST_ID]) {
     if (lists.some((l) => l.id === id)) continue;
     const missing = DEFAULT_LISTS.find((l) => l.id === id)!;
     await put("lists", missing);
@@ -88,10 +94,14 @@ export async function getSettings(): Promise<Settings> {
   // stamp the current version onto an old object and skip the migration.
   const storedVersion = row === undefined ? SETTINGS_VERSION : (row.value?.v ?? 1);
 
-  // v2 shortened the launch animation. Settings saved before that carry the
-  // old 4s value, so bring them forward once rather than stranding them.
+  // Settings saved before the current version need bringing forward, or the
+  // defaults below would never reach a device that already has a settings row.
+  //   v2: shortened the launch animation from 4s to 2s.
+  //   v3: dark is the default theme, not "match my device".
   if (storedVersion < SETTINGS_VERSION) {
-    const migrated = { ...stored, splashSeconds: 2, v: SETTINGS_VERSION };
+    const migrated = { ...stored, v: SETTINGS_VERSION };
+    if (storedVersion < 2) migrated.splashSeconds = 2;
+    if (storedVersion < 3) migrated.theme = "dark";
     await saveSettings(migrated);
     return migrated;
   }

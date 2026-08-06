@@ -17,6 +17,7 @@ import {
   Settings,
   Task,
   TODAY_LIST_ID,
+  TOMORROW_LIST_ID,
 } from "@/lib/types";
 
 type Gate = "loading" | "set" | "locked" | "open";
@@ -47,9 +48,17 @@ function resolveDark(theme: Settings["theme"]): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-/** Today's date in the user's own timezone, as YYYY-MM-DD. */
-function todayKey(d = new Date()): string {
+/** A date in the user's own timezone, as YYYY-MM-DD. */
+function dayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const todayKey = () => dayKey();
+
+function tomorrowKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return dayKey(d);
 }
 
 function dueLabel(iso: string): string {
@@ -285,12 +294,13 @@ export default function Home() {
     patchTask(task, { subtasks: (task.subtasks ?? []).filter((s) => s.id !== id) });
 
   /**
-   * Tagging for today doesn't move or duplicate the task — it surfaces the
-   * same task in the Today view while it stays in its own bucket, so ticking
-   * it off in one place is ticking it off in both.
+   * Planning doesn't move or duplicate the task — it surfaces the same task
+   * in the Today or Tomorrow view while it stays in its own bucket, so
+   * ticking it off in one place is ticking it off everywhere. Tapping the
+   * tag it already carries clears it; tapping the other one moves it.
    */
-  const toggleToday = (task: Task) =>
-    patchTask(task, { todayOn: task.todayOn === todayKey() ? undefined : todayKey() });
+  const setPlanned = (task: Task, day: string) =>
+    patchTask(task, { plannedOn: task.plannedOn === day ? undefined : day, todayOn: undefined });
 
   /** Moving a task out of Done necessarily means it is no longer done. */
   const rebucket = (task: Task, listId: string) =>
@@ -314,7 +324,8 @@ export default function Home() {
       .filter((t) => {
         if (t.listId === DONE_LIST_ID && activeList !== DONE_LIST_ID) return false;
         if (activeList === "all") return true;
-        if (activeList === TODAY_LIST_ID) return t.todayOn === todayKey();
+        if (activeList === TODAY_LIST_ID) return t.plannedOn === todayKey();
+        if (activeList === TOMORROW_LIST_ID) return t.plannedOn === tomorrowKey();
         return t.listId === activeList;
       })
       .sort((a, b) => {
@@ -501,22 +512,31 @@ export default function Home() {
                       )}
                       {task.note?.trim() && <span className="label">Note</span>}
 
-                      <button
-                        onClick={() => void toggleToday(task)}
-                        aria-pressed={task.todayOn === todayKey()}
-                        className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
-                        style={
-                          task.todayOn === todayKey()
-                            ? {
-                                borderColor: "var(--accent)",
-                                color: "var(--on-accent)",
-                                background: "var(--accent)",
-                              }
-                            : { borderColor: "var(--rule)" }
-                        }
-                      >
-                        Today
-                      </button>
+                      {([
+                        ["Today", todayKey()],
+                        ["Tomorrow", tomorrowKey()],
+                      ] as const).map(([label, day]) => {
+                        const on = task.plannedOn === day;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => void setPlanned(task, day)}
+                            aria-pressed={on}
+                            className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
+                            style={
+                              on
+                                ? {
+                                    borderColor: "var(--accent)",
+                                    color: "var(--on-accent)",
+                                    background: "var(--accent)",
+                                  }
+                                : { borderColor: "var(--rule)" }
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                       {task.due && (
                         <span
                           className="label"

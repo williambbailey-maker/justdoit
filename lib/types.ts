@@ -20,7 +20,10 @@ export interface Task {
   completedAt?: number;
   /** List the task sat in before completion, so un-checking can restore it. */
   prevListId?: string;
-  /** YYYY-MM-DD the task was tagged for today; stale tags drop off overnight. */
+  /** YYYY-MM-DD the task is planned for. Drives the Today and Tomorrow
+   *  views; a date in the past simply stops matching either. */
+  plannedOn?: string;
+  /** @deprecated Pre-Tomorrow name for plannedOn; normalised on read. */
   todayOn?: string;
   /** Set when the task came out of a voice note. */
   source?: "voice";
@@ -44,6 +47,10 @@ export const DONE_LIST_ID = "done";
  * own bucket. Nothing is ever stored with this as its listId.
  */
 export const TODAY_LIST_ID = "today";
+
+/** Same idea as Today, one day out. A tag dated tomorrow rolls into the
+ *  Today view by itself once tomorrow arrives. */
+export const TOMORROW_LIST_ID = "tomorrow";
 
 export interface VoiceNote {
   id: string;
@@ -74,7 +81,7 @@ export interface Settings {
   v: number;
 }
 
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 export const DEFAULT_SETTINGS: Settings = {
   codeHash: null,
@@ -84,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: "",
   aiParsing: true,
   keepTranscripts: true,
-  theme: "system",
+  theme: "dark",
   splashSeconds: 2,
   v: SETTINGS_VERSION,
 };
@@ -94,6 +101,9 @@ export const DEFAULT_LISTS: List[] = [
   { id: "work", name: "Work", keywords: ["work", "meeting", "email", "client", "deck"], order: 1 },
   { id: "personal", name: "Personal", keywords: ["home", "buy", "call", "pick up", "grocery"], order: 2 },
   { id: TODAY_LIST_ID, name: "Today", keywords: [], order: -1, system: true },
+  // -0.5 keeps Tomorrow between Today and Inbox without renumbering the
+  // lists already stored on devices.
+  { id: TOMORROW_LIST_ID, name: "Tomorrow", keywords: [], order: -0.5, system: true },
   { id: DONE_LIST_ID, name: "Done", keywords: [], order: 999, system: true },
 ];
 
