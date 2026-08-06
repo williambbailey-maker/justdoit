@@ -5,6 +5,7 @@ import {
   List,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
+  RUNDOWN_LIST_ID,
   SETTINGS_VERSION,
   Settings,
   Task,
@@ -70,7 +71,7 @@ export const getLists = async (): Promise<List[]> => {
     return [...DEFAULT_LISTS].sort((a, b) => a.order - b.order);
   }
   // Devices set up before the system buckets existed won't have them yet.
-  for (const id of [TODAY_LIST_ID, TOMORROW_LIST_ID, DONE_LIST_ID]) {
+  for (const id of [TODAY_LIST_ID, TOMORROW_LIST_ID, RUNDOWN_LIST_ID, DONE_LIST_ID]) {
     if (lists.some((l) => l.id === id)) continue;
     const missing = DEFAULT_LISTS.find((l) => l.id === id)!;
     await put("lists", missing);

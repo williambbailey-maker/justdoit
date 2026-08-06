@@ -18,6 +18,7 @@ import {
   Task,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
+  RUNDOWN_LIST_ID,
 } from "@/lib/types";
 
 type Gate = "loading" | "set" | "locked" | "open";
@@ -75,7 +76,7 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<List[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [activeList, setActiveList] = useState<string>("all");
+  const [activeList, setActiveList] = useState<string>(TODAY_LIST_ID);
   const [quick, setQuick] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
@@ -338,6 +339,30 @@ export default function Home() {
 
   // Counts follow whatever bucket you're looking at; only "All" is global.
   const inDoneView = activeList === DONE_LIST_ID;
+  const inRundown = activeList === RUNDOWN_LIST_ID;
+
+  const STALE_DAYS = 5;
+
+  /** The three Rundown groups, all derived — nothing extra is stored. */
+  const rundown = useMemo(() => {
+    const today = todayKey();
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = dayKey(y);
+    const staleBefore = Date.now() - STALE_DAYS * 86_400_000;
+
+    return {
+      // Planned for today — exactly what was tagged Tomorrow yesterday.
+      onDeck: tasks.filter((t) => !t.done && t.plannedOn === today),
+      // completedAt is a timestamp, so compare on its local calendar day.
+      yesterday: tasks.filter(
+        (t) => t.done && t.completedAt && dayKey(new Date(t.completedAt)) === yesterday,
+      ),
+      stale: tasks
+        .filter((t) => !t.done && t.createdAt < staleBefore)
+        .sort((a, b) => a.createdAt - b.createdAt),
+    };
+  }, [tasks]);
   const headlineCount = inDoneView ? visible.length : visible.filter((t) => !t.done).length;
   const doneVisible = visible.filter((t) => t.done);
 
@@ -351,6 +376,216 @@ export default function Home() {
   const listName = activeList === "all" ? "Everything" : (lists.find((l) => l.id === activeList)?.name ?? "");
 
   // The splash covers the whole launch, including the IndexedDB read behind it.
+  /** One task row. Shared by the bucket list and every Rundown group. */
+  const taskRow = (task: Task, i: number) => (
+    <div key={task.id}>
+      <div className="group border-b border-[var(--rule)] py-6">
+        <div className="flex items-start gap-4">
+          <span className="idx mt-3 w-8 shrink-0">{String(i + 1).padStart(3, "0")}</span>
+
+          <button
+            onClick={() => void toggle(task)}
+            aria-label={task.done ? "Mark as not done" : "Mark as done"}
+            className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[var(--fg)] transition-colors duration-300"
+            style={{ background: task.done ? "var(--accent)" : "transparent" }}
+          />
+
+          <div className="min-w-0 flex-1">
+            {/* Tapping opens the detail pane. Completing stays with the
+                checkbox, so a stray tap can't tick a task off. */}
+            <button
+              onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
+              aria-expanded={expandedId === task.id}
+              className="block w-full text-left text-3xl font-medium leading-[1.05] tracking-[-0.02em] sm:text-4xl"
+              style={{
+                color: task.done ? "var(--muted)" : undefined,
+                textDecoration: task.done ? "line-through" : undefined,
+              }}
+            >
+              {task.title}
+            </button>
+
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <span className="label">
+                {lists.find((l) => l.id === task.listId)?.name ?? "Inbox"}
+              </span>
+              {(task.subtasks?.length ?? 0) > 0 && (
+                <span className="label">
+                  {task.subtasks!.filter((s) => s.done).length}/{task.subtasks!.length} sub-tasks
+                </span>
+              )}
+              {task.note?.trim() && <span className="label">Note</span>}
+
+              {([
+                ["Today", todayKey()],
+                ["Tomorrow", tomorrowKey()],
+              ] as const).map(([label, day]) => {
+                const on = task.plannedOn === day;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => void setPlanned(task, day)}
+                    aria-pressed={on}
+                    className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
+                    style={
+                      on
+                        ? {
+                            borderColor: "var(--accent)",
+                            color: "var(--on-accent)",
+                            background: "var(--accent)",
+                          }
+                        : { borderColor: "var(--rule)" }
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              {task.due && (
+                <span
+                  className="label"
+                  style={{ color: dueLabel(task.due) === "Overdue" ? "var(--accent)" : undefined }}
+                >
+                  {dueLabel(task.due)}
+                </span>
+              )}
+              {task.priority === "high" && (
+                <span className="label" style={{ color: "var(--accent)" }}>
+                  Urgent
+                </span>
+              )}
+              {task.source === "voice" && <span className="label">Voice</span>}
+              <button
+                onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                className="label ml-auto underline underline-offset-4"
+              >
+                {expandedId === task.id ? "Close" : "Details"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+            {expandedId === task.id && (
+              <div className="mt-6 space-y-6 rounded-[10px] border border-[var(--rule)] p-4">
+                <div>
+                  <p className="label mb-2">Note</p>
+                  <textarea
+                    value={task.note ?? ""}
+                    onChange={(e) => void patchTask(task, { note: e.target.value })}
+                    placeholder="anything worth remembering"
+                    autoCapitalize="none"
+                    className="field min-h-24 resize-none text-base"
+                  />
+                </div>
+
+                <div>
+                  <p className="label mb-2">Sub-tasks</p>
+                  {(task.subtasks ?? []).map((s) => (
+                    <div key={s.id} className="flex items-center gap-3 py-2">
+                      <button
+                        onClick={() => void toggleSubtask(task, s.id)}
+                        aria-label={s.done ? "Mark sub-task as not done" : "Mark sub-task as done"}
+                        className="h-4 w-4 shrink-0 rounded-[4px] border border-[var(--fg)] transition-colors duration-300"
+                        style={{ background: s.done ? "var(--accent)" : "transparent" }}
+                      />
+                      <span
+                        className="flex-1 text-base"
+                        style={{
+                          color: s.done ? "var(--muted)" : "var(--fg)",
+                          textDecoration: s.done ? "line-through" : undefined,
+                        }}
+                      >
+                        {s.title}
+                      </span>
+                      <button
+                        onClick={() => void removeSubtask(task, s.id)}
+                        className="label underline underline-offset-4"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="mt-2 flex gap-3">
+                    <input
+                      value={subtaskDraft[task.id] ?? ""}
+                      onChange={(e) =>
+                        setSubtaskDraft((d) => ({ ...d, [task.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => e.key === "Enter" && void addSubtask(task)}
+                      placeholder="add sub-task"
+                      autoCapitalize="none"
+                      className="field flex-1 text-base"
+                    />
+                    <button
+                      onClick={() => void addSubtask(task)}
+                      disabled={!(subtaskDraft[task.id] ?? "").trim()}
+                      className="btn-ghost"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="label mb-2">Bucket</p>
+                  <select
+                    value={task.done ? (task.prevListId ?? settings.defaultListId) : task.listId}
+                    onChange={(e) => void rebucket(task, e.target.value)}
+                    className="field text-base"
+                  >
+                    {lists
+                      .filter((l) => !l.system)
+                      .map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                  </select>
+                  {task.done && (
+                    <p className="mt-2 text-sm text-[var(--fg-2)]">
+                      Moving it out of Done marks it not done.
+                    </p>
+                  )}
+                </div>
+
+                <button onClick={() => void remove(task.id)} className="btn-ghost w-full">
+                  Delete task
+                </button>
+              </div>
+            )}
+
+      </div>
+    </div>
+  );
+
+  const rundownGroup = (title: string, blurb: string, items: Task[]) => (
+    <div className="border-t border-[var(--rule)] pt-6">
+      <div className="flex items-baseline gap-3">
+        <p className="label">{title}</p>
+        <span className="idx">{items.length}</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="py-6 text-base text-[var(--fg-2)]">{blurb}</p>
+      ) : (
+        <div className="mt-2">{items.map(taskRow)}</div>
+      )}
+    </div>
+  );
+
+  const rundownView = (
+    <div className="space-y-10 pb-8">
+      {rundownGroup("On deck today", "Nothing planned for today yet.", rundown.onDeck)}
+      {rundownGroup("Finished yesterday", "Nothing was ticked off yesterday.", rundown.yesterday)}
+      {rundownGroup(
+        `Older than ${STALE_DAYS} days`,
+        "Nothing has been sitting around. Good.",
+        rundown.stale,
+      )}
+    </div>
+  );
+
   if (mounted && !splashDone) {
     return <Splash seconds={splashSeconds} onDone={() => setSplashDone(true)} />;
   }
@@ -374,7 +609,8 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-5">
             <span className="label hidden sm:inline">
-              {headlineCount} {inDoneView ? "done" : "open"}
+              {inRundown ? rundown.onDeck.length : headlineCount}{" "}
+              {inRundown ? "today" : inDoneView ? "done" : "open"}
             </span>
 
             <div className="relative" ref={menuRef}>
@@ -437,7 +673,11 @@ export default function Home() {
       <section className="border-b border-[var(--rule)] px-6 py-10">
         <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-semibold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
-          {headlineCount === 0 ? (
+          {inRundown ? (
+            <>
+              The<span style={{ color: "var(--accent)" }}>&nbsp;rundown</span>
+            </>
+          ) : headlineCount === 0 ? (
             <>
               {inDoneView ? "Nothing" : "All"}
               <span style={{ color: "var(--accent)" }}>&nbsp;{inDoneView ? "yet" : "clear"}</span>
@@ -468,196 +708,17 @@ export default function Home() {
       </section>
 
       <section className="px-6">
-        {visible.length === 0 ? (
+        {activeList === RUNDOWN_LIST_ID ? (
+          rundownView
+        ) : visible.length === 0 ? (
           <p className="py-16 text-base text-[var(--fg-2)]">
             Nothing here yet. Add a task above, or leave a voice note.
           </p>
         ) : (
-          <div className="border-t border-transparent">
-            {visible.map((task, i) => (
-              <div key={task.id} className="group border-b border-[var(--rule)] py-6">
-                <div className="flex items-start gap-4">
-                  <span className="idx mt-3 w-8 shrink-0">{String(i + 1).padStart(3, "0")}</span>
-
-                  <button
-                    onClick={() => void toggle(task)}
-                    aria-label={task.done ? "Mark as not done" : "Mark as done"}
-                    className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[var(--fg)] transition-colors duration-300"
-                    style={{ background: task.done ? "var(--accent)" : "transparent" }}
-                  />
-
-                  <div className="min-w-0 flex-1">
-                    {/* Tapping opens the detail pane. Completing stays with the
-                        checkbox, so a stray tap can't tick a task off. */}
-                    <button
-                      onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
-                      aria-expanded={expandedId === task.id}
-                      className="block w-full text-left text-3xl font-medium leading-[1.05] tracking-[-0.02em] sm:text-4xl"
-                      style={{
-                        color: task.done ? "var(--muted)" : undefined,
-                        textDecoration: task.done ? "line-through" : undefined,
-                      }}
-                    >
-                      {task.title}
-                    </button>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-4">
-                      <span className="label">
-                        {lists.find((l) => l.id === task.listId)?.name ?? "Inbox"}
-                      </span>
-                      {(task.subtasks?.length ?? 0) > 0 && (
-                        <span className="label">
-                          {task.subtasks!.filter((s) => s.done).length}/{task.subtasks!.length} sub-tasks
-                        </span>
-                      )}
-                      {task.note?.trim() && <span className="label">Note</span>}
-
-                      {([
-                        ["Today", todayKey()],
-                        ["Tomorrow", tomorrowKey()],
-                      ] as const).map(([label, day]) => {
-                        const on = task.plannedOn === day;
-                        return (
-                          <button
-                            key={label}
-                            onClick={() => void setPlanned(task, day)}
-                            aria-pressed={on}
-                            className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
-                            style={
-                              on
-                                ? {
-                                    borderColor: "var(--accent)",
-                                    color: "var(--on-accent)",
-                                    background: "var(--accent)",
-                                  }
-                                : { borderColor: "var(--rule)" }
-                            }
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                      {task.due && (
-                        <span
-                          className="label"
-                          style={{ color: dueLabel(task.due) === "Overdue" ? "var(--accent)" : undefined }}
-                        >
-                          {dueLabel(task.due)}
-                        </span>
-                      )}
-                      {task.priority === "high" && (
-                        <span className="label" style={{ color: "var(--accent)" }}>
-                          Urgent
-                        </span>
-                      )}
-                      {task.source === "voice" && <span className="label">Voice</span>}
-                      <button
-                        onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
-                        className="label ml-auto underline underline-offset-4"
-                      >
-                        {expandedId === task.id ? "Close" : "Details"}
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-
-                    {expandedId === task.id && (
-                      <div className="mt-6 space-y-6 rounded-[10px] border border-[var(--rule)] p-4">
-                        <div>
-                          <p className="label mb-2">Note</p>
-                          <textarea
-                            value={task.note ?? ""}
-                            onChange={(e) => void patchTask(task, { note: e.target.value })}
-                            placeholder="anything worth remembering"
-                            autoCapitalize="none"
-                            className="field min-h-24 resize-none text-base"
-                          />
-                        </div>
-
-                        <div>
-                          <p className="label mb-2">Sub-tasks</p>
-                          {(task.subtasks ?? []).map((s) => (
-                            <div key={s.id} className="flex items-center gap-3 py-2">
-                              <button
-                                onClick={() => void toggleSubtask(task, s.id)}
-                                aria-label={s.done ? "Mark sub-task as not done" : "Mark sub-task as done"}
-                                className="h-4 w-4 shrink-0 rounded-[4px] border border-[var(--fg)] transition-colors duration-300"
-                                style={{ background: s.done ? "var(--accent)" : "transparent" }}
-                              />
-                              <span
-                                className="flex-1 text-base"
-                                style={{
-                                  color: s.done ? "var(--muted)" : "var(--fg)",
-                                  textDecoration: s.done ? "line-through" : undefined,
-                                }}
-                              >
-                                {s.title}
-                              </span>
-                              <button
-                                onClick={() => void removeSubtask(task, s.id)}
-                                className="label underline underline-offset-4"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-
-                          <div className="mt-2 flex gap-3">
-                            <input
-                              value={subtaskDraft[task.id] ?? ""}
-                              onChange={(e) =>
-                                setSubtaskDraft((d) => ({ ...d, [task.id]: e.target.value }))
-                              }
-                              onKeyDown={(e) => e.key === "Enter" && void addSubtask(task)}
-                              placeholder="add sub-task"
-                              autoCapitalize="none"
-                              className="field flex-1 text-base"
-                            />
-                            <button
-                              onClick={() => void addSubtask(task)}
-                              disabled={!(subtaskDraft[task.id] ?? "").trim()}
-                              className="btn-ghost"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="label mb-2">Bucket</p>
-                          <select
-                            value={task.done ? (task.prevListId ?? settings.defaultListId) : task.listId}
-                            onChange={(e) => void rebucket(task, e.target.value)}
-                            className="field text-base"
-                          >
-                            {lists
-                              .filter((l) => !l.system)
-                              .map((l) => (
-                                <option key={l.id} value={l.id}>
-                                  {l.name}
-                                </option>
-                              ))}
-                          </select>
-                          {task.done && (
-                            <p className="mt-2 text-sm text-[var(--fg-2)]">
-                              Moving it out of Done marks it not done.
-                            </p>
-                          )}
-                        </div>
-
-                        <button onClick={() => void remove(task.id)} className="btn-ghost w-full">
-                          Delete task
-                        </button>
-                      </div>
-                    )}
-
-              </div>
-            ))}
-          </div>
+          <div className="border-t border-transparent">{visible.map(taskRow)}</div>
         )}
 
-        {doneVisible.length > 0 && (
+        {doneVisible.length > 0 && activeList !== RUNDOWN_LIST_ID && (
           <div className="py-8">
             <button onClick={() => void clearCompleted()} className="label underline underline-offset-4">
               Clear {doneVisible.length} completed

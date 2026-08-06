@@ -52,6 +52,10 @@ export const TODAY_LIST_ID = "today";
  *  Today view by itself once tomorrow arrives. */
 export const TOMORROW_LIST_ID = "tomorrow";
 
+/** A digest rather than a bucket: today's plan, yesterday's wins, and
+ *  anything that has been sitting around too long. */
+export const RUNDOWN_LIST_ID = "rundown";
+
 export interface VoiceNote {
   id: string;
   transcript: string;
@@ -104,6 +108,7 @@ export const DEFAULT_LISTS: List[] = [
   // -0.5 keeps Tomorrow between Today and Inbox without renumbering the
   // lists already stored on devices.
   { id: TOMORROW_LIST_ID, name: "Tomorrow", keywords: [], order: -0.5, system: true },
+  { id: RUNDOWN_LIST_ID, name: "Rundown", keywords: [], order: -0.25, system: true },
   { id: DONE_LIST_ID, name: "Done", keywords: [], order: 999, system: true },
 ];
 
