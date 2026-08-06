@@ -214,7 +214,12 @@ export default function Home() {
     [gate, settings],
   );
 
-  async function addTasks(parsed: ParsedTask[], transcript: string, source?: "voice") {
+  async function addTasks(
+    parsed: ParsedTask[],
+    transcript: string,
+    source?: "voice",
+    extra?: Partial<Task>,
+  ) {
     const now = Date.now();
     const created: Task[] = parsed.map((p, i) => ({
       id: uid(),
@@ -226,6 +231,7 @@ export default function Home() {
       due: p.due,
       createdAt: now + i,
       source,
+      ...extra,
     }));
     await Promise.all(created.map((t) => db.saveTask(t)));
 
@@ -311,9 +317,26 @@ export default function Home() {
   async function submitQuick() {
     const text = quick.trim();
     if (!text) return;
-    const target = activeList === "all" ? settings.defaultListId : activeList;
+    // Today, Tomorrow and Done are views, not homes — a task can never live
+    // in one. Adding from those lands it in the default bucket instead, and
+    // from Today/Tomorrow it also picks up the matching plan date so it shows
+    // up in the view you added it from.
+    const onSystemView = activeList === "all" || lists.some((l) => l.id === activeList && l.system);
+    const target = onSystemView ? settings.defaultListId : activeList;
+    const plannedOn =
+      activeList === TODAY_LIST_ID
+        ? todayKey()
+        : activeList === TOMORROW_LIST_ID
+          ? tomorrowKey()
+          : undefined;
+
     const [parsed] = localParse(text, lists, target);
-    await addTasks([{ ...(parsed ?? { title: text, listId: target }), listId: target }], "");
+    await addTasks(
+      [{ ...(parsed ?? { title: text, listId: target }), listId: target }],
+      "",
+      undefined,
+      plannedOn ? { plannedOn } : undefined,
+    );
     setQuick("");
   }
 
@@ -355,14 +378,14 @@ export default function Home() {
   /** One task row. Shared by the bucket list and every Rundown group. */
   const taskRow = (task: Task, i: number) => (
     <div key={task.id}>
-      <div className="group border-b border-[var(--rule)] py-6">
+      <div className="group border-b border-[var(--rule)] py-4">
         <div className="flex items-start gap-4">
-          <span className="idx mt-3 w-8 shrink-0">{String(i + 1).padStart(3, "0")}</span>
+          <span className="idx mt-2 w-8 shrink-0">{String(i + 1).padStart(3, "0")}</span>
 
           <button
             onClick={() => void toggle(task)}
             aria-label={task.done ? "Mark as not done" : "Mark as done"}
-            className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[var(--fg)] transition-colors duration-300"
+            className="mt-1 h-5 w-5 shrink-0 rounded-[5px] border border-[var(--fg)] transition-colors duration-300"
             style={{ background: task.done ? "var(--accent)" : "transparent" }}
           />
 
@@ -372,7 +395,7 @@ export default function Home() {
             <button
               onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
               aria-expanded={expandedId === task.id}
-              className="block w-full text-left text-3xl font-medium leading-[1.05] tracking-[-0.02em] sm:text-4xl"
+              className="block w-full text-left text-2xl font-medium leading-[1.1] tracking-[-0.02em] sm:text-3xl"
               style={{
                 color: task.done ? "var(--muted)" : undefined,
                 textDecoration: task.done ? "line-through" : undefined,
@@ -381,7 +404,7 @@ export default function Home() {
               {task.title}
             </button>
 
-            <div className="mt-3 flex flex-wrap items-center gap-4">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="label">
                 {lists.find((l) => l.id === task.listId)?.name ?? "Inbox"}
               </span>
@@ -402,7 +425,7 @@ export default function Home() {
                     key={label}
                     onClick={() => void setPlanned(task, day)}
                     aria-pressed={on}
-                    className="label rounded-[6px] border px-2 py-1 transition-colors duration-300"
+                    className="label rounded-[6px] border px-2 py-0.5 transition-colors duration-300"
                     style={
                       on
                         ? {
