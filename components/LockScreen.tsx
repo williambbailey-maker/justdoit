@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Mark from "@/components/Mark";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
@@ -64,10 +65,7 @@ export default function LockScreen({
   return (
     <main className="flex min-h-dvh flex-col justify-between bg-[#e3e2de] px-6 py-10">
       <div>
-        {/* Brand name stays lowercase even though .label uppercases everything else. */}
-        <p className="label" style={{ textTransform: "none" }}>
-          swoosh
-        </p>
+        <Mark height={18} />
       </div>
 
       <div className="flex flex-col items-center gap-10">
@@ -90,13 +88,13 @@ export default function LockScreen({
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-4 w-4 border border-[#141414]"
+              className="h-4 w-4 rounded-[4px] border border-[#141414]"
               style={{ background: i < code.length ? "var(--accent)" : "transparent" }}
             />
           ))}
         </div>
 
-        <div className="grid w-full max-w-xs grid-cols-3 border-l border-t border-[#c7c7c7]">
+        <div className="grid w-full max-w-xs grid-cols-3 overflow-hidden rounded-[14px] border-l border-t border-[#c7c7c7]">
           {KEYS.map((k, i) =>
             k === "" ? (
               <div key={i} className="border-b border-r border-[#c7c7c7]" />

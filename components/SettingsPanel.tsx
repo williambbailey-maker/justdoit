@@ -82,14 +82,14 @@ export default function SettingsPanel({
           <Row label="Lists">
             <div className="space-y-4">
               {lists.map((l) => (
-                <div key={l.id} className="border border-[#c7c7c7] p-4">
+                <div key={l.id} className="rounded-[10px] border border-[#c7c7c7] p-4">
                   <div className="flex items-center gap-3">
                     <input
                       value={l.name}
                       onChange={(e) => onSaveList({ ...l, name: e.target.value })}
                       className="flex-1 border-none bg-transparent p-0 text-xl font-bold outline-none"
                     />
-                    {lists.length > 1 && (
+                    {!l.system && lists.length > 1 && (
                       <button
                         onClick={() => onDeleteList(l.id)}
                         className="text-xs font-bold uppercase tracking-[0.15em] text-[#7a7a7a] underline underline-offset-4"
@@ -145,7 +145,7 @@ export default function SettingsPanel({
               onChange={(e) => patch({ defaultListId: e.target.value })}
               className="field"
             >
-              {lists.map((l) => (
+              {lists.filter((l) => !l.system).map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>
@@ -160,7 +160,7 @@ export default function SettingsPanel({
                   key={c}
                   onClick={() => patch({ accent: c })}
                   aria-label={`Accent ${c}`}
-                  className="h-10 w-10 border transition-transform duration-300"
+                  className="h-10 w-10 rounded-[8px] border transition-transform duration-300"
                   style={{
                     background: c,
                     borderColor: settings.accent === c ? "#141414" : "#c7c7c7",

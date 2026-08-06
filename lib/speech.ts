@@ -32,6 +32,8 @@ export const speechSupported = () => ctor() !== null;
 
 export interface Recorder {
   stop(): void;
+  /** Drop the accumulated text so the next results start a fresh segment. */
+  clear(): void;
 }
 
 export function startDictation(handlers: {
@@ -88,6 +90,9 @@ export function startDictation(handlers: {
     stop() {
       stopped = true;
       rec.stop();
+    },
+    clear() {
+      final = "";
     },
   };
 }

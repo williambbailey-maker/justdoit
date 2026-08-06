@@ -21,6 +21,8 @@ export default function VoiceSheet({
   const [stage, setStage] = useState<Stage>("idle");
   const [finalText, setFinalText] = useState("");
   const [interim, setInterim] = useState("");
+  /** Segments already closed off by the "New task" button. */
+  const [parts, setParts] = useState<string[]>([]);
   const [draft, setDraft] = useState<ParsedTask[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const recorder = useRef<Recorder | null>(null);
@@ -32,6 +34,7 @@ export default function VoiceSheet({
     setMessage(null);
     setFinalText("");
     setInterim("");
+    setParts([]);
     recorder.current = startDictation({
       onTranscript: (f, i) => {
         setFinalText(f);
@@ -50,16 +53,39 @@ export default function VoiceSheet({
     setStage("listening");
   }
 
-  async function process(text: string) {
-    const transcript = text.trim();
+  /** Spoken separators become the same boundary the button inserts. */
+  function normalize(text: string): string {
+    return text
+      .replace(/\b(?:new task|next task|new item|next item|next one)\b[,.]?/gi, "\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const liveText = [...parts, `${finalText} ${interim}`.trim()].filter(Boolean).join("\n");
+
+  /** Close the current segment and start the next one. */
+  function markBoundary() {
+    const current = `${finalText} ${interim}`.trim();
+    if (current) setParts((p) => [...p, current]);
+    recorder.current?.clear();
+    setFinalText("");
+    setInterim("");
+  }
+
+  async function process(raw: string) {
+    const transcript = normalize(raw);
     if (!transcript) {
       setStage("idle");
       return;
     }
     setStage("thinking");
 
+    const explicitBoundaries = transcript.includes("\n");
+
     const fallback = () => {
-      setDraft(localParse(transcript, lists, settings.defaultListId));
+      setDraft(localParse(transcript, lists, settings.defaultListId, explicitBoundaries));
       setStage("review");
     };
 
@@ -74,6 +100,7 @@ export default function VoiceSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transcript,
+          explicitBoundaries,
           lists: lists.map((l) => ({ id: l.id, name: l.name, keywords: l.keywords })),
           apiKey: settings.apiKey || undefined,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -105,7 +132,7 @@ export default function VoiceSheet({
   function stopAndProcess() {
     recorder.current?.stop();
     recorder.current = null;
-    void process(`${finalText} ${interim}`);
+    void process(liveText);
   }
 
   const update = (i: number, patch: Partial<ParsedTask>) =>
@@ -143,16 +170,25 @@ export default function VoiceSheet({
               )}
             </h2>
 
+            {stage === "listening" && (
+              <p className="label mt-4">
+                {parts.length === 0
+                  ? 'Tap "New task" between items, or just say "new task"'
+                  : `${parts.length + 1} task${parts.length === 0 ? "" : "s"} so far`}
+              </p>
+            )}
+
             <textarea
-              value={finalText + (interim ? ` ${interim}` : "")}
+              value={liveText}
               onChange={(e) => {
+                setParts([]);
                 setFinalText(e.target.value);
                 setInterim("");
               }}
               placeholder={
                 supported
-                  ? "Tap record, or type here."
-                  : "Speech recognition isn't supported here — type the note."
+                  ? 'Tap record, or type here. One task per line — say "new task" to start a new line.'
+                  : "Speech recognition isn't supported here — type the note, one task per line."
               }
               className="field mt-8 min-h-48 resize-none text-lg leading-relaxed"
             />
@@ -185,7 +221,7 @@ export default function VoiceSheet({
                         <select
                           value={t.listId}
                           onChange={(e) => update(i, { listId: e.target.value })}
-                          className="border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[#444343]"
+                          className="rounded-[8px] border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] text-[#444343]"
                         >
                           {lists.map((l) => (
                             <option key={l.id} value={l.id}>
@@ -198,7 +234,7 @@ export default function VoiceSheet({
                           type="date"
                           value={t.due ?? ""}
                           onChange={(e) => update(i, { due: e.target.value || undefined })}
-                          className="border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs text-[#444343]"
+                          className="rounded-[8px] border border-[#c7c7c7] bg-transparent px-3 py-2 text-xs text-[#444343]"
                         />
 
                         <button
@@ -226,7 +262,7 @@ export default function VoiceSheet({
               </button>
             )}
             <button
-              onClick={() => void process(finalText)}
+              onClick={() => void process(liveText)}
               disabled={!finalText.trim()}
               className={supported ? "btn-ghost flex-1" : "btn-primary flex-1"}
             >
@@ -236,9 +272,14 @@ export default function VoiceSheet({
         )}
 
         {stage === "listening" && (
-          <button onClick={stopAndProcess} className="btn-dark w-full">
-            Stop &amp; sort
-          </button>
+          <div className="flex gap-3">
+            <button onClick={markBoundary} className="btn-ghost flex-1">
+              New task
+            </button>
+            <button onClick={stopAndProcess} className="btn-dark flex-1">
+              Stop &amp; sort
+            </button>
+          </div>
         )}
 
         {stage === "thinking" && (

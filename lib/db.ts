@@ -1,6 +1,7 @@
 import {
   DEFAULT_LISTS,
   DEFAULT_SETTINGS,
+  DONE_LIST_ID,
   List,
   SETTINGS_VERSION,
   Settings,
@@ -60,6 +61,12 @@ export const getLists = async (): Promise<List[]> => {
   if (lists.length === 0) {
     await Promise.all(DEFAULT_LISTS.map((l) => put("lists", l)));
     return [...DEFAULT_LISTS];
+  }
+  // Devices set up before the Done bucket existed won't have it yet.
+  if (!lists.some((l) => l.id === DONE_LIST_ID)) {
+    const done = DEFAULT_LISTS.find((l) => l.id === DONE_LIST_ID)!;
+    await put("lists", done);
+    lists.push(done);
   }
   return lists.sort((a, b) => a.order - b.order);
 };

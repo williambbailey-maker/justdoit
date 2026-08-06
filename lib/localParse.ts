@@ -54,9 +54,17 @@ function routeList(text: string, lists: List[], defaultListId: string): string {
  * Rule-based transcript → tasks. Used when AI parsing is off or the API
  * route is unavailable, so a voice note is never lost.
  */
-export function localParse(transcript: string, lists: List[], defaultListId: string): ParsedTask[] {
-  return transcript
-    .split(SPLIT)
+export function localParse(
+  transcript: string,
+  lists: List[],
+  defaultListId: string,
+  explicitBoundaries = false,
+): ParsedTask[] {
+  // When the speaker marked the breaks themselves, take them at their word —
+  // guessing further would split "call the bank and the dentist" in two.
+  const segments = explicitBoundaries ? transcript.split("\n") : transcript.split(SPLIT);
+
+  return segments
     .map((s) => s.trim())
     .filter((s) => s.length > 2)
     .map((segment) => {

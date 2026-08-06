@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LockScreen from "@/components/LockScreen";
+import Mark from "@/components/Mark";
 import SettingsPanel from "@/components/SettingsPanel";
 import Splash from "@/components/Splash";
 import VoiceSheet from "@/components/VoiceSheet";
 import * as db from "@/lib/db";
 import { clearUnlocked, hashCode, isUnlocked, markUnlocked, touchUnlocked } from "@/lib/lock";
 import { localParse } from "@/lib/localParse";
-import { DEFAULT_SETTINGS, List, ParsedTask, Settings, Task } from "@/lib/types";
+import { DEFAULT_SETTINGS, DONE_LIST_ID, List, ParsedTask, Settings, Task } from "@/lib/types";
 
 type Gate = "loading" | "set" | "locked" | "open";
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -147,11 +148,25 @@ export default function Home() {
   }
 
   async function toggle(task: Task) {
-    const next: Task = {
-      ...task,
-      done: !task.done,
-      completedAt: task.done ? undefined : Date.now(),
-    };
+    const completing = !task.done;
+    // Completing files the task under Done; un-checking sends it home again.
+    const next: Task = completing
+      ? {
+          ...task,
+          done: true,
+          completedAt: Date.now(),
+          prevListId: task.listId === DONE_LIST_ID ? task.prevListId : task.listId,
+          listId: DONE_LIST_ID,
+        }
+      : {
+          ...task,
+          done: false,
+          completedAt: undefined,
+          listId: lists.some((l) => l.id === task.prevListId)
+            ? task.prevListId!
+            : settings.defaultListId,
+          prevListId: undefined,
+        };
     await db.saveTask(next);
     setTasks((prev) => prev.map((t) => (t.id === next.id ? next : t)));
   }
@@ -171,10 +186,10 @@ export default function Home() {
   }
 
   const visible = useMemo(() => {
-    // Nothing is hidden here — done tasks drop to the bottom and stay until
-    // they are explicitly deleted.
+    // Nothing is deleted here — completed tasks live in the Done bucket and
+    // stay there until explicitly removed. "All" means all the live lists.
     return tasks
-      .filter((t) => (activeList === "all" ? true : t.listId === activeList))
+      .filter((t) => (activeList === "all" ? t.listId !== DONE_LIST_ID : t.listId === activeList))
       .sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
         if (a.due && b.due && a.due !== b.due) return a.due < b.due ? -1 : 1;
@@ -212,7 +227,11 @@ export default function Home() {
     <main className="min-h-dvh bg-[#e3e2de] pb-32">
       <header className="sticky top-0 z-30 border-b border-[#c7c7c7] bg-[#e3e2de]/95 backdrop-blur">
         <div className="flex h-20 items-center justify-between px-6">
-          <h1 className="text-2xl font-extrabold lowercase tracking-[-0.03em]">swoosh</h1>
+          {/* The mark replaces the wordmark, at 150% of the old 24px type. */}
+          <h1 className="flex items-center">
+            <Mark height={36} />
+            <span className="sr-only">swoosh</span>
+          </h1>
           <div className="flex items-center gap-5">
             <span className="label hidden sm:inline">
               {openCount} open
@@ -256,7 +275,7 @@ export default function Home() {
       </header>
 
       <section className="border-b border-[#c7c7c7] px-6 py-10">
-        <p className="label">{listName}</p>
+        <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-extrabold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
           {openCount === 0 ? (
             <>
@@ -299,7 +318,7 @@ export default function Home() {
                   <button
                     onClick={() => void toggle(task)}
                     aria-label={task.done ? "Mark as not done" : "Mark as done"}
-                    className="mt-2 h-5 w-5 shrink-0 border border-[#141414] transition-colors duration-300"
+                    className="mt-2 h-5 w-5 shrink-0 rounded-[5px] border border-[#141414] transition-colors duration-300"
                     style={{ background: task.done ? "var(--accent)" : "transparent" }}
                   />
 
@@ -367,7 +386,7 @@ export default function Home() {
 
       {showVoice && (
         <VoiceSheet
-          lists={lists}
+          lists={lists.filter((l) => !l.system)}
           settings={settings}
           onClose={() => setShowVoice(false)}
           onCommit={async (parsed, transcript) => {

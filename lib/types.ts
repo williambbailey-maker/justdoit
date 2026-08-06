@@ -11,6 +11,8 @@ export interface Task {
   due?: string;
   createdAt: number;
   completedAt?: number;
+  /** List the task sat in before completion, so un-checking can restore it. */
+  prevListId?: string;
   /** Set when the task came out of a voice note. */
   source?: "voice";
 }
@@ -21,7 +23,12 @@ export interface List {
   /** Keywords used to route voice-note tasks when AI parsing is unavailable. */
   keywords: string[];
   order: number;
+  /** Managed by the app — not a routing target, and can't be deleted. */
+  system?: boolean;
 }
+
+/** Completed tasks are moved here automatically. */
+export const DONE_LIST_ID = "done";
 
 export interface VoiceNote {
   id: string;
@@ -68,6 +75,7 @@ export const DEFAULT_LISTS: List[] = [
   { id: "inbox", name: "Inbox", keywords: [], order: 0 },
   { id: "work", name: "Work", keywords: ["work", "meeting", "email", "client", "deck"], order: 1 },
   { id: "personal", name: "Personal", keywords: ["home", "buy", "call", "pick up", "grocery"], order: 2 },
+  { id: DONE_LIST_ID, name: "Done", keywords: [], order: 999, system: true },
 ];
 
 /** Shape returned by /api/parse for each extracted task. */
