@@ -421,7 +421,7 @@ export default function Home() {
               <button
                 key={l.id}
                 onClick={() => setActiveList(l.id)}
-                className="whitespace-nowrap text-xs font-bold uppercase transition-colors duration-300"
+                className="whitespace-nowrap text-[1.125rem] font-bold uppercase transition-colors duration-300"
                 style={{
                   letterSpacing: "0.2em",
                   color: active ? "var(--accent)" : "var(--muted)",
