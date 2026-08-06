@@ -1,6 +1,7 @@
 const UNLOCK_KEY = "suush:unlocked-at";
 
 export async function hashCode(code: string): Promise<string> {
+  // The salt is fixed across the rename so an already-set code keeps working.
   const bytes = new TextEncoder().encode(`suush:${code}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest))

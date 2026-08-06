@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SUUSH",
+  title: "swoosh",
   description: "A quiet place for tasks and voice notes.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Suush",
-    statusBarStyle: "default",
+    title: "swoosh",
+    statusBarStyle: "black",
   },
   icons: {
     icon: "/icon-192.png",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#E3E2DE",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

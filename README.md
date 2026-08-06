@@ -1,4 +1,4 @@
-# Suush
+# swoosh
 
 A private, single-user task and list app. Installable as a PWA, deployed on Vercel.
 
@@ -51,7 +51,13 @@ Open the deployed URL in Safari or Chrome and choose **Add to Home Screen**. It 
 
 Data is per-browser. Clearing site data erases it, and your phone and laptop hold separate copies. **Settings → Your data** has JSON export and import — use export before clearing anything or moving devices.
 
+## Branding
+
+The launch animation and app icons use a swoosh mark, which is a Nike trademark. That's fine for a private personal app, but don't use it on anything public-facing or commercial. To swap it, replace the `<path>` in `components/Splash.tsx` and re-run the icon script — the mark exists in exactly those two places.
+
 ## Notes
 
+- The launch animation runs 4 seconds by default and is adjustable (or off) in **Settings → Launch animation**.
+- The internal IndexedDB store is still named `suush` from before the rename, deliberately: renaming it would orphan any tasks already saved on-device.
 - The 4-digit code keeps casual snoopers out of the app UI. It is not encryption: anyone with devtools access to the device can read IndexedDB directly. Don't store secrets here.
 - Auto-lock defaults to one hour of inactivity and is configurable.

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LockScreen from "@/components/LockScreen";
 import SettingsPanel from "@/components/SettingsPanel";
+import Splash from "@/components/Splash";
 import VoiceSheet from "@/components/VoiceSheet";
 import * as db from "@/lib/db";
 import { clearUnlocked, hashCode, isUnlocked, markUnlocked, touchUnlocked } from "@/lib/lock";
@@ -11,6 +12,12 @@ import { DEFAULT_SETTINGS, List, ParsedTask, Settings, Task } from "@/lib/types"
 
 type Gate = "loading" | "set" | "locked" | "open";
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+/**
+ * The splash length is mirrored to localStorage because it has to be known
+ * synchronously on mount — well before IndexedDB settings finish loading.
+ */
+const SPLASH_KEY = "swoosh:splash-seconds";
 
 function dueLabel(iso: string): string {
   const today = new Date();
@@ -31,6 +38,22 @@ export default function Home() {
   const [quick, setQuick] = useState("");
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [splashSeconds, setSplashSeconds] = useState(4);
+  const [splashDone, setSplashDone] = useState(false);
+
+  // Read the splash preference on mount rather than during render, so the
+  // server and first client render agree.
+  useEffect(() => {
+    // A missing key must fall back to the default, not to Number(null) === 0,
+    // which would read as "splash off" on every first launch.
+    const raw = localStorage.getItem(SPLASH_KEY);
+    const parsed = raw === null ? NaN : Number(raw);
+    const secs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 4;
+    setSplashSeconds(secs);
+    if (secs === 0) setSplashDone(true);
+    setMounted(true);
+  }, []);
 
   const load = useCallback(async () => {
     const [t, l, s] = await Promise.all([db.getTasks(), db.getLists(), db.getSettings()]);
@@ -43,6 +66,7 @@ export default function Home() {
   useEffect(() => {
     void (async () => {
       const s = await load();
+      localStorage.setItem(SPLASH_KEY, String(s.splashSeconds));
       if (!s.codeHash) setGate("set");
       else setGate(isUnlocked(s.autoLockMinutes) ? "open" : "locked");
     })();
@@ -72,6 +96,7 @@ export default function Home() {
 
   const persistSettings = async (s: Settings) => {
     setSettings(s);
+    localStorage.setItem(SPLASH_KEY, String(s.splashSeconds));
     await db.saveSettings(s);
   };
 
@@ -160,7 +185,12 @@ export default function Home() {
   const openCount = tasks.filter((t) => !t.done).length;
   const listName = activeList === "all" ? "Everything" : (lists.find((l) => l.id === activeList)?.name ?? "");
 
-  if (gate === "loading") {
+  // The splash covers the whole launch, including the IndexedDB read behind it.
+  if (mounted && !splashDone) {
+    return <Splash seconds={splashSeconds} onDone={() => setSplashDone(true)} />;
+  }
+
+  if (!mounted || gate === "loading") {
     return <main className="min-h-dvh bg-[#e3e2de]" />;
   }
 
@@ -172,7 +202,7 @@ export default function Home() {
     <main className="min-h-dvh bg-[#e3e2de] pb-32">
       <header className="sticky top-0 z-30 border-b border-[#c7c7c7] bg-[#e3e2de]/95 backdrop-blur">
         <div className="flex h-20 items-center justify-between px-6">
-          <h1 className="text-2xl font-extrabold uppercase tracking-[-0.03em]">Suush</h1>
+          <h1 className="text-2xl font-extrabold lowercase tracking-[-0.03em]">swoosh</h1>
           <div className="flex items-center gap-5">
             <span className="label hidden sm:inline">
               {openCount} open

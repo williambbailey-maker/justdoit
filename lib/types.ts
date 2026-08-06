@@ -45,6 +45,8 @@ export interface Settings {
   aiParsing: boolean;
   /** Keep the raw transcript of every processed voice note. */
   keepTranscripts: boolean;
+  /** Length of the launch animation in seconds. 0 skips it. */
+  splashSeconds: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: "",
   aiParsing: true,
   keepTranscripts: true,
+  splashSeconds: 4,
 };
 
 export const DEFAULT_LISTS: List[] = [

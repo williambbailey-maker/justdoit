@@ -1,5 +1,5 @@
 // Minimal offline shell. Data lives in IndexedDB, so we only cache the app itself.
-const CACHE = "suush-v1";
+const CACHE = "swoosh-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {

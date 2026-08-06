@@ -45,7 +45,7 @@ export default function SettingsPanel({
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `suush-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `swoosh-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setStatus("Exported.");
@@ -214,6 +214,19 @@ export default function SettingsPanel({
                 className="h-6 w-6 shrink-0 accent-[var(--accent)]"
               />
             </label>
+          </Row>
+
+          <Row label="Launch animation">
+            <select
+              value={settings.splashSeconds}
+              onChange={(e) => patch({ splashSeconds: Number(e.target.value) })}
+              className="field"
+            >
+              <option value={0}>Off — open straight to the code</option>
+              <option value={2}>2 seconds</option>
+              <option value={4}>4 seconds</option>
+              <option value={6}>6 seconds</option>
+            </select>
           </Row>
 
           <Row label="Auto-lock">

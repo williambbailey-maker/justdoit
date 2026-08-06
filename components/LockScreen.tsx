@@ -64,7 +64,10 @@ export default function LockScreen({
   return (
     <main className="flex min-h-dvh flex-col justify-between bg-[#e3e2de] px-6 py-10">
       <div>
-        <p className="label">Suush</p>
+        {/* Brand name stays lowercase even though .label uppercases everything else. */}
+        <p className="label" style={{ textTransform: "none" }}>
+          swoosh
+        </p>
       </div>
 
       <div className="flex flex-col items-center gap-10">

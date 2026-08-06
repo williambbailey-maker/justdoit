@@ -1,5 +1,7 @@
 import { DEFAULT_LISTS, DEFAULT_SETTINGS, List, Settings, Task, VoiceNote } from "./types";
 
+// Deliberately unchanged through the rename to swoosh — renaming the store
+// would orphan every task and list already saved on the device.
 const DB_NAME = "suush";
 const DB_VERSION = 1;
 const STORES = ["tasks", "lists", "notes", "meta"] as const;
