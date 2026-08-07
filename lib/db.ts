@@ -7,6 +7,7 @@ import {
   TOMORROW_LIST_ID,
   SETTINGS_VERSION,
   Settings,
+  Block,
   Task,
   VoiceNote,
 } from "./types";
@@ -14,8 +15,8 @@ import {
 // Deliberately unchanged through the rename to swoosh — renaming the store
 // would orphan every task and list already saved on the device.
 const DB_NAME = "suush";
-const DB_VERSION = 1;
-const STORES = ["tasks", "lists", "notes", "meta"] as const;
+const DB_VERSION = 2;
+const STORES = ["tasks", "lists", "notes", "blocks", "meta"] as const;
 type StoreName = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -92,6 +93,16 @@ export const getLists = async (): Promise<List[]> => {
 export const saveList = (l: List) => put("lists", l);
 export const deleteList = (id: string) => del("lists", id);
 
+export const getBlocks = () => all<Block>("blocks");
+export const saveBlock = (b: Block) => put("blocks", b);
+export const deleteBlock = (id: string) => del("blocks", id);
+
+/** Used when a task is deleted, so its scheduled slots go with it. */
+export async function deleteBlocksForTask(taskId: string) {
+  const blocks = await getBlocks();
+  await Promise.all(blocks.filter((b) => b.taskId === taskId).map((b) => del("blocks", b.id)));
+}
+
 export const getNotes = () => all<VoiceNote>("notes");
 export const saveNote = (n: VoiceNote) => put("notes", n);
 export const deleteNote = (id: string) => del("notes", id);
@@ -122,21 +133,23 @@ export async function getSettings(): Promise<Settings> {
 export const saveSettings = (value: Settings) => put("meta", { key: "settings", value });
 
 export async function exportAll() {
-  const [tasks, lists, notes, settings] = await Promise.all([
+  const [tasks, lists, notes, blocks, settings] = await Promise.all([
     getTasks(),
     getLists(),
     getNotes(),
+    getBlocks(),
     getSettings(),
   ]);
   // The code hash is device-local; leaving it out keeps backups portable.
   const { codeHash: _codeHash, apiKey: _apiKey, ...safeSettings } = settings;
-  return { version: 1, exportedAt: Date.now(), tasks, lists, notes, settings: safeSettings };
+  return { version: 2, exportedAt: Date.now(), tasks, lists, notes, blocks, settings: safeSettings };
 }
 
 export async function importAll(data: {
   tasks?: Task[];
   lists?: List[];
   notes?: VoiceNote[];
+  blocks?: Block[];
   settings?: Partial<Settings>;
 }) {
   const current = await getSettings();
@@ -144,6 +157,7 @@ export async function importAll(data: {
     ...(data.lists ?? []).map((l) => put("lists", l)),
     ...(data.tasks ?? []).map((t) => put("tasks", t)),
     ...(data.notes ?? []).map((n) => put("notes", n)),
+    ...(data.blocks ?? []).map((b) => put("blocks", b)),
   ]);
   if (data.settings) {
     // Never let an import overwrite this device's lock code or key.

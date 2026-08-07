@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DayPlanner from "@/components/DayPlanner";
 import LockScreen from "@/components/LockScreen";
 import Mark from "@/components/Mark";
 import SettingsPanel from "@/components/SettingsPanel";
@@ -10,6 +11,7 @@ import * as db from "@/lib/db";
 import { clearUnlocked, hashCode, isUnlocked, markUnlocked, touchUnlocked } from "@/lib/lock";
 import { localParse } from "@/lib/localParse";
 import {
+  Block,
   DEFAULT_SETTINGS,
   DONE_LIST_ID,
   List,
@@ -81,6 +83,8 @@ export default function Home() {
   const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [showPlanner, setShowPlanner] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -101,9 +105,15 @@ export default function Home() {
   }, []);
 
   const load = useCallback(async () => {
-    const [t, l, s] = await Promise.all([db.getTasks(), db.getLists(), db.getSettings()]);
+    const [t, l, bl, s] = await Promise.all([
+      db.getTasks(),
+      db.getLists(),
+      db.getBlocks(),
+      db.getSettings(),
+    ]);
     setTasks(t);
     setLists(l);
+    setBlocks(bl);
     setSettings(s);
     return s;
   }, []);
@@ -272,7 +282,9 @@ export default function Home() {
 
   async function remove(id: string) {
     await db.deleteTask(id);
+    await db.deleteBlocksForTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setBlocks((prev) => prev.filter((b) => b.taskId !== id));
     setExpandedId((cur) => (cur === id ? null : cur));
   }
 
@@ -313,6 +325,16 @@ export default function Home() {
     task.done
       ? patchTask(task, { listId, done: false, completedAt: undefined, prevListId: undefined })
       : patchTask(task, { listId });
+
+  const saveBlock = async (b: Block) => {
+    setBlocks((prev) => (prev.some((x) => x.id === b.id) ? prev.map((x) => (x.id === b.id ? b : x)) : [...prev, b]));
+    await db.saveBlock(b);
+  };
+
+  const removeBlock = async (id: string) => {
+    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    await db.deleteBlock(id);
+  };
 
   async function submitQuick() {
     const text = quick.trim();
@@ -694,10 +716,26 @@ export default function Home() {
       </section>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--rule)] bg-[var(--bg-95)] p-4 backdrop-blur">
-        <button onClick={() => setShowVoice(true)} className="btn-primary w-full">
-          Leave a voice note
-        </button>
+        <div className="flex gap-3">
+          <button onClick={() => setShowPlanner(true)} className="btn-ghost flex-1">
+            Plan
+          </button>
+          <button onClick={() => setShowVoice(true)} className="btn-primary flex-[2]">
+            Voice note
+          </button>
+        </div>
       </div>
+
+      {showPlanner && (
+        <DayPlanner
+          tasks={tasks}
+          blocks={blocks}
+          onClose={() => setShowPlanner(false)}
+          onSaveBlock={(b) => void saveBlock(b)}
+          onDeleteBlock={(id) => void removeBlock(id)}
+          onToggleTask={(t) => void toggle(t)}
+        />
+      )}
 
       {showVoice && (
         <VoiceSheet

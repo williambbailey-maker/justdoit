@@ -52,6 +52,24 @@ export const TODAY_LIST_ID = "today";
  *  Today view by itself once tomorrow arrives. */
 export const TOMORROW_LIST_ID = "tomorrow";
 
+/**
+ * A slot on the day planner. A block either schedules a task (taskId set) or
+ * is a standalone commitment with no task behind it — a meeting, a commute,
+ * lunch. Scheduling never creates or mutates tasks.
+ */
+export interface Block {
+  id: string;
+  /** YYYY-MM-DD, local. */
+  date: string;
+  /** Minutes from midnight. */
+  start: number;
+  /** Length in minutes. */
+  duration: number;
+  title: string;
+  /** Set when the block schedules an existing task. */
+  taskId?: string;
+}
+
 export interface VoiceNote {
   id: string;
   transcript: string;
