@@ -52,6 +52,9 @@ export const TODAY_LIST_ID = "today";
  *  Today view by itself once tomorrow arrives. */
 export const TOMORROW_LIST_ID = "tomorrow";
 
+/** The day planner, surfaced as a bucket rather than a separate screen. */
+export const PLAN_LIST_ID = "plan";
+
 /**
  * A slot on the day planner. A block either schedules a task (taskId set) or
  * is a standalone commitment with no task behind it — a meeting, a commute,
@@ -122,6 +125,7 @@ export const DEFAULT_LISTS: List[] = [
   // -0.5 keeps Tomorrow between Today and Inbox without renumbering the
   // lists already stored on devices.
   { id: TOMORROW_LIST_ID, name: "Tomorrow", keywords: [], order: -0.5, system: true },
+  { id: PLAN_LIST_ID, name: "Plan", keywords: [], order: -0.25, system: true },
   { id: DONE_LIST_ID, name: "Done", keywords: [], order: 999, system: true },
 ];
 

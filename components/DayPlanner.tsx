@@ -57,6 +57,7 @@ type Drag =
 export default function DayPlanner({
   tasks,
   blocks,
+  embedded = false,
   onClose,
   onSaveBlock,
   onDeleteBlock,
@@ -64,7 +65,9 @@ export default function DayPlanner({
 }: {
   tasks: Task[];
   blocks: Block[];
-  onClose: () => void;
+  /** Rendered as a bucket inside the page rather than as a full-screen sheet. */
+  embedded?: boolean;
+  onClose?: () => void;
   onSaveBlock: (b: Block) => void;
   onDeleteBlock: (id: string) => void;
   onToggleTask: (task: Task) => void;
@@ -207,13 +210,15 @@ export default function DayPlanner({
   const activeId = drag && drag.kind !== "new" ? drag.id : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg)]">
-      <header className="flex h-20 shrink-0 items-center justify-between border-b border-[var(--rule)] px-6">
-        <p className="label">Plan</p>
-        <button onClick={onClose} className="text-sm font-semibold underline underline-offset-4">
-          Done
-        </button>
-      </header>
+    <div className={embedded ? "flex flex-col" : "fixed inset-0 z-50 flex flex-col bg-[var(--bg)]"}>
+      {!embedded && (
+        <header className="flex h-20 shrink-0 items-center justify-between border-b border-[var(--rule)] px-6">
+          <p className="label">Plan</p>
+          <button onClick={onClose} className="text-sm font-semibold underline underline-offset-4">
+            Done
+          </button>
+        </header>
+      )}
 
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--rule)] px-6 py-4">
         <button onClick={() => setDate(shiftDate(date, -1))} className="label px-2">
@@ -248,7 +253,7 @@ export default function DayPlanner({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className={embedded ? "" : "flex-1 overflow-y-auto"}>
         <div className="relative flex px-6 py-4">
           {/* Hour gutter */}
           <div className="w-14 shrink-0" style={{ height: GRID_HEIGHT }}>
@@ -399,7 +404,7 @@ export default function DayPlanner({
         </div>
       </div>
 
-      <footer className="shrink-0 border-t border-[var(--rule)] p-4">
+      <footer className="shrink-0 border-t border-[var(--rule)] p-4 pb-8">
         <div className="flex gap-3">
           <button onClick={addFreeBlock} className="btn-ghost flex-1">
             Add block

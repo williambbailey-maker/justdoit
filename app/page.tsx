@@ -18,6 +18,7 @@ import {
   ParsedTask,
   Settings,
   Task,
+  PLAN_LIST_ID,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
 } from "@/lib/types";
@@ -31,6 +32,16 @@ const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice
  */
 const SPLASH_KEY = "swoosh:splash-seconds";
 const THEME_KEY = "swoosh:theme";
+
+function Mic() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+      <rect x="9" y="2.5" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3.5" />
+    </svg>
+  );
+}
 
 function Gear() {
   return (
@@ -84,7 +95,6 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [showPlanner, setShowPlanner] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -175,6 +185,27 @@ export default function Home() {
     return () =>
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
+
+  // Swipe left/right to move between buckets.
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipe.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const from = swipe.current;
+    swipe.current = null;
+    if (!from) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - from.x;
+    const dy = t.clientY - from.y;
+    // Needs to be a decisive horizontal move, or a diagonal scroll would
+    // change bucket under the user.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    step(dx < 0 ? 1 : -1);
+  };
 
   // Dismiss the gear menu on any click outside it.
   useEffect(() => {
@@ -383,6 +414,19 @@ export default function Home() {
 
   // Counts follow whatever bucket you're looking at; only "All" is global.
   const inDoneView = activeList === DONE_LIST_ID;
+  const inPlan = activeList === PLAN_LIST_ID;
+
+  /** Rail order, used by both the tabs and the swipe gesture. */
+  const railIds = useMemo(() => ["all", ...lists.map((l) => l.id)], [lists]);
+
+  const step = (dir: 1 | -1) => {
+    const i = railIds.indexOf(activeList);
+    const next = railIds[i + dir];
+    if (next) {
+      setActiveList(next);
+      setExpandedId(null);
+    }
+  };
 
   const headlineCount = inDoneView ? visible.length : visible.filter((t) => !t.done).length;
   const doneVisible = visible.filter((t) => t.done);
@@ -594,7 +638,11 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-dvh bg-[var(--bg)] pb-32">
+    <main
+      className="min-h-dvh bg-[var(--bg)] pb-12"
+      onTouchStart={inPlan ? undefined : onTouchStart}
+      onTouchEnd={inPlan ? undefined : onTouchEnd}
+    >
       <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[var(--bg-95)] backdrop-blur">
         <div className="flex h-20 items-center justify-between px-6">
           {/* The mark replaces the wordmark, at 150% of the old 24px type. */}
@@ -664,6 +712,7 @@ export default function Home() {
         </div>
       </header>
 
+      {!inPlan && (
       <section className="border-b border-[var(--rule)] px-6 py-10">
         <p className="section-title">{listName}</p>
         <h2 className="mt-4 text-6xl font-semibold leading-[0.85] tracking-[-0.04em] sm:text-7xl">
@@ -694,11 +743,30 @@ export default function Home() {
           <button onClick={() => void submitQuick()} disabled={!quick.trim()} className="btn-dark">
             Add
           </button>
+          {/* Explicit square. The row stretches to the tallest item, so Add
+              matches this height rather than the other way round. */}
+          <button
+            onClick={() => setShowVoice(true)}
+            aria-label="Leave a voice note"
+            className="btn-dark flex h-14 w-14 shrink-0 items-center justify-center !p-0"
+          >
+            <Mic />
+          </button>
         </div>
       </section>
+      )}
 
-      <section className="px-6">
-        {visible.length === 0 ? (
+      <section className={inPlan ? "" : "px-6"}>
+        {inPlan ? (
+          <DayPlanner
+            embedded
+            tasks={tasks}
+            blocks={blocks}
+            onSaveBlock={(b) => void saveBlock(b)}
+            onDeleteBlock={(id) => void removeBlock(id)}
+            onToggleTask={(t) => void toggle(t)}
+          />
+        ) : visible.length === 0 ? (
           <p className="py-16 text-base text-[var(--fg-2)]">
             Nothing here yet. Add a task above, or leave a voice note.
           </p>
@@ -706,7 +774,7 @@ export default function Home() {
           <div className="border-t border-transparent">{visible.map(taskRow)}</div>
         )}
 
-        {doneVisible.length > 0 && (
+        {!inPlan && doneVisible.length > 0 && (
           <div className="py-8">
             <button onClick={() => void clearCompleted()} className="label underline underline-offset-4">
               Clear {doneVisible.length} completed
@@ -714,28 +782,6 @@ export default function Home() {
           </div>
         )}
       </section>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--rule)] bg-[var(--bg-95)] p-4 backdrop-blur">
-        <div className="flex gap-3">
-          <button onClick={() => setShowPlanner(true)} className="btn-ghost flex-1">
-            Plan
-          </button>
-          <button onClick={() => setShowVoice(true)} className="btn-primary flex-[2]">
-            Voice note
-          </button>
-        </div>
-      </div>
-
-      {showPlanner && (
-        <DayPlanner
-          tasks={tasks}
-          blocks={blocks}
-          onClose={() => setShowPlanner(false)}
-          onSaveBlock={(b) => void saveBlock(b)}
-          onDeleteBlock={(id) => void removeBlock(id)}
-          onToggleTask={(t) => void toggle(t)}
-        />
-      )}
 
       {showVoice && (
         <VoiceSheet
