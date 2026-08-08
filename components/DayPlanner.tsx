@@ -14,6 +14,9 @@ const DAYS_AHEAD = 3;
 const DAY_START = START_HOUR * 60;
 const DAY_END = END_HOUR * 60;
 const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN;
+/** Left inset of the block area, and the gutter between side-by-side blocks. */
+const LEFT_INSET = 8;
+const COL_GAP = 4;
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const snap = (min: number) => Math.round(min / SNAP) * SNAP;
@@ -240,6 +243,56 @@ export default function DayPlanner({
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
   const activeId = drag && drag.kind !== "new" ? drag.id : null;
 
+  /**
+   * Overlapping blocks share the width instead of covering each other.
+   * Blocks are grouped into clusters of things that touch in time, then given
+   * the first free column within their cluster; every block in a cluster is
+   * sized to the widest point of that cluster so edges line up.
+   *
+   * Geometry comes from the live drag when there is one, so columns re-flow
+   * under the finger rather than snapping into place on release.
+   */
+  const columns = useMemo(() => {
+    const items = dayBlocks
+      .map((b) =>
+        activeId === b.id && ghost ? { ...b, start: ghost.start, duration: ghost.duration } : b,
+      )
+      .sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+
+    const placed = new Map<string, { col: number; cols: number }>();
+    let cluster: typeof items = [];
+    let clusterEnd = -Infinity;
+
+    const flush = () => {
+      if (cluster.length === 0) return;
+      const colEnds: number[] = [];
+      const seats = new Map<string, number>();
+      for (const it of cluster) {
+        let col = colEnds.findIndex((end) => end <= it.start);
+        if (col === -1) {
+          col = colEnds.length;
+          colEnds.push(0);
+        }
+        colEnds[col] = it.start + it.duration;
+        seats.set(it.id, col);
+      }
+      for (const it of cluster) {
+        placed.set(it.id, { col: seats.get(it.id) ?? 0, cols: colEnds.length });
+      }
+      cluster = [];
+      clusterEnd = -Infinity;
+    };
+
+    for (const it of items) {
+      if (it.start >= clusterEnd) flush();
+      cluster.push(it);
+      clusterEnd = Math.max(clusterEnd, it.start + it.duration);
+    }
+    flush();
+
+    return placed;
+  }, [dayBlocks, activeId, ghost]);
+
   return (
     <div className={embedded ? "flex flex-col" : "fixed inset-0 z-50 flex flex-col bg-[var(--bg)]"}>
       {!embedded && (
@@ -345,6 +398,7 @@ export default function DayPlanner({
               const duration = isActive && ghost ? ghost.duration : b.duration;
               const task = b.taskId ? tasks.find((t) => t.id === b.taskId) : undefined;
               const done = task?.done ?? false;
+              const { col, cols } = columns.get(b.id) ?? { col: 0, cols: 1 };
 
               return (
                 <div
@@ -354,15 +408,17 @@ export default function DayPlanner({
                     position: "absolute",
                     top: (start - DAY_START) * PX_PER_MIN,
                     height: duration * PX_PER_MIN,
-                    left: 8,
-                    right: 0,
+                    left: `calc(${LEFT_INSET}px + (100% - ${LEFT_INSET}px) * ${col} / ${cols})`,
+                    width: `calc((100% - ${LEFT_INSET}px) / ${cols} - ${COL_GAP}px)`,
                     touchAction: "none",
+                    // Whatever is being dragged rides above its neighbours.
+                    zIndex: isActive ? 2 : 1,
                     opacity: isActive ? 0.85 : 1,
                     background: b.taskId ? "var(--accent)" : "transparent",
                     color: b.taskId ? "var(--on-accent)" : "var(--fg)",
                     borderColor: "var(--rule)",
                   }}
-                  className="overflow-hidden rounded-[8px] border px-3 py-1"
+                  className={`overflow-hidden rounded-[8px] border py-1 ${cols > 1 ? "px-2" : "px-3"}`}
                 >
                   <div className="flex h-full items-start gap-2">
                     {task && (
@@ -395,20 +451,26 @@ export default function DayPlanner({
                         />
                       ) : (
                         <p
-                          className="truncate text-sm leading-tight"
+                          // Narrow columns wrap to two lines rather than
+                          // truncating a title down to three characters.
+                          className={
+                            cols > 1
+                              ? "line-clamp-2 text-xs leading-tight"
+                              : "truncate text-sm leading-tight"
+                          }
                           style={{ textDecoration: done ? "line-through" : undefined }}
                         >
                           {b.title || "untitled"}
                         </p>
                       )}
-                      {duration >= 45 && (
+                      {cols === 1 && duration >= 45 && (
                         <p className="mt-0.5 text-[0.65rem] leading-tight opacity-60">
                           {timeLabel(start)} – {timeLabel(start + duration)}
                         </p>
                       )}
                     </div>
 
-                    {!b.taskId && (
+                    {!b.taskId && cols === 1 && (
                       <button
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => setEditing(b.id)}
@@ -446,8 +508,8 @@ export default function DayPlanner({
                   position: "absolute",
                   top: (ghost.start - DAY_START) * PX_PER_MIN,
                   height: ghost.duration * PX_PER_MIN,
-                  left: 8,
-                  right: 0,
+                  left: LEFT_INSET,
+                  right: COL_GAP,
                   background: "var(--accent)",
                   color: "var(--on-accent)",
                   opacity: 0.7,
