@@ -92,7 +92,9 @@ export default function LockScreen({
           <p className="mt-4 text-sm text-[var(--fg-2)]">
             {mode === "set"
               ? "Four digits. It stays on this device."
-              : "Four digits to open your lists."}
+              : onFaceId
+                ? "Or type your four digits."
+                : "Four digits to open your lists."}
           </p>
           {error && <p className="mt-3 text-sm font-semibold text-[var(--fg)]">{error}</p>}
         </div>
@@ -108,8 +110,8 @@ export default function LockScreen({
         </div>
 
         {mode === "unlock" && onFaceId && (
-          <button onClick={() => onFaceId(true)} className="btn-ghost w-full max-w-xs">
-            Use Face ID
+          <button onClick={() => onFaceId(true)} className="btn-primary w-full max-w-xs">
+            Unlock with Face ID
           </button>
         )}
 

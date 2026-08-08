@@ -254,12 +254,16 @@ export default function SettingsPanel({
           </Row>
 
           <Row label="Auto-lock">
+            <p className="mb-3 text-sm text-[var(--fg-2)]">
+              How long the app stays open before asking again. Lock now from the
+              gear menu at any time.
+            </p>
             <select
               value={settings.autoLockMinutes}
               onChange={(e) => patch({ autoLockMinutes: Number(e.target.value) })}
               className="field"
             >
-              <option value={0}>Never (until the tab closes)</option>
+              <option value={0}>Never — stay unlocked</option>
               <option value={5}>After 5 minutes</option>
               <option value={60}>After 1 hour</option>
               <option value={1440}>After 1 day</option>
