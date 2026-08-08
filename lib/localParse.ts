@@ -1,6 +1,5 @@
 import { List, ParsedTask, Priority } from "./types";
 
-const SPLIT = /(?:\.|;|\n|\band then\b|\balso\b|,\s*and\b|\band also\b)+/i;
 const LEAD = /^(?:i need to|i have to|i should|remind me to|remember to|todo|to do|please|and|then|also)\s+/i;
 
 /** Resolve a relative day word to YYYY-MM-DD in the caller's local timezone. */
@@ -51,20 +50,16 @@ function routeList(text: string, lists: List[], defaultListId: string): string {
 }
 
 /**
- * Rule-based transcript → tasks. Used when AI parsing is off or the API
- * route is unavailable, so a voice note is never lost.
+ * Rule-based transcript → tasks, used when AI parsing is off or unreachable.
+ *
+ * Splits only where the speaker said so. One note is one task unless "new
+ * task" was spoken (or the button tapped), which arrives here as a newline.
+ * No sentence, conjunction or punctuation heuristics — they used to break
+ * "call the bank and the dentist" into two.
  */
-export function localParse(
-  transcript: string,
-  lists: List[],
-  defaultListId: string,
-  explicitBoundaries = false,
-): ParsedTask[] {
-  // When the speaker marked the breaks themselves, take them at their word —
-  // guessing further would split "call the bank and the dentist" in two.
-  const segments = explicitBoundaries ? transcript.split("\n") : transcript.split(SPLIT);
-
-  return segments
+export function localParse(transcript: string, lists: List[], defaultListId: string): ParsedTask[] {
+  return transcript
+    .split("\n")
     .map((s) => s.trim())
     .filter((s) => s.length > 2)
     .map((segment) => {

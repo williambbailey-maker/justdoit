@@ -50,12 +50,7 @@ const SCHEMA = {
   additionalProperties: false,
 } as const;
 
-function systemPrompt(
-  lists: ListInput[],
-  today: string,
-  timezone: string,
-  explicitBoundaries: boolean,
-) {
+function systemPrompt(lists: ListInput[], today: string, timezone: string) {
   const catalog = lists
     .map((l) => `- id: ${l.id} | name: ${l.name}${l.keywords?.length ? ` | covers: ${l.keywords.join(", ")}` : ""}`)
     .join("\n");
@@ -68,11 +63,7 @@ Available lists:
 ${catalog}
 
 Rules:
-${
-  explicitBoundaries
-    ? "- The speaker marked the task boundaries themselves. Each line of the transcript is exactly one task: never merge two lines, never split one line into two, and return the tasks in the order given."
-    : "- One task per distinct action. A note mentioning three errands becomes three tasks."
-}
+- The speaker marks their own task boundaries. Each line of the transcript is exactly one task: never merge two lines, and never split one line into two however many actions it mentions. "call the bank and the dentist" is one task. Return them in the order given.
 - Do not invent tasks. If the note is just a thought with no action, return an empty tasks array.
 - Titles are short and imperative. Strip filler like "I need to" or "remind me to".
 - Write titles and notes in all lowercase, including proper nouns — the app is styled that way.
@@ -91,7 +82,6 @@ export async function POST(req: NextRequest) {
     lists?: ListInput[];
     apiKey?: string;
     timezone?: string;
-    explicitBoundaries?: boolean;
   };
   try {
     body = await req.json();
@@ -131,7 +121,7 @@ export async function POST(req: NextRequest) {
         effort: "low",
         format: { type: "json_schema", schema: SCHEMA },
       },
-      system: systemPrompt(lists, today, timezone, body.explicitBoundaries === true),
+      system: systemPrompt(lists, today, timezone),
       messages: [{ role: "user", content: `<transcript>\n${transcript}\n</transcript>` }],
     });
 

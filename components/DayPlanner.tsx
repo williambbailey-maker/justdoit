@@ -9,6 +9,8 @@ const PX_PER_MIN = 1.2; // 72px per hour — a 30-minute block still fits a line
 const SNAP = 15;
 const MIN_DURATION = 30;
 const NEW_DURATION = 45;
+/** Today plus the next two days. */
+const DAYS_AHEAD = 3;
 const DAY_START = START_HOUR * 60;
 const DAY_END = END_HOUR * 60;
 const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN;
@@ -72,7 +74,10 @@ export default function DayPlanner({
   onDeleteBlock: (id: string) => void;
   onToggleTask: (task: Task) => void;
 }) {
-  const [date, setDate] = useState(() => dayKey(new Date()));
+  // The window is today .. today+2, addressed by offset so it can't drift.
+  const [dayOffset, setDayOffset] = useState(0);
+  const date = useMemo(() => shiftDate(dayKey(new Date()), dayOffset), [dayOffset]);
+  const [entry, setEntry] = useState("");
   const [drag, setDrag] = useState<Drag | null>(null);
   /** Live geometry while dragging, so the DB isn't written on every frame. */
   const [ghost, setGhost] = useState<{ start: number; duration: number } | null>(null);
@@ -197,13 +202,39 @@ export default function DayPlanner({
     });
   }
 
+  /** Swipe left/right across the day header to move within the 3-day window. */
+  const daySwipe = useRef<{ x: number; y: number } | null>(null);
+
+  const onDayTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    daySwipe.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const onDayTouchEnd = (e: React.TouchEvent) => {
+    const from = daySwipe.current;
+    daySwipe.current = null;
+    if (!from) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - from.x;
+    const dy = t.clientY - from.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    setDayOffset((o) => Math.min(DAYS_AHEAD - 1, Math.max(0, o + (dx < 0 ? 1 : -1))));
+  };
+
   /** Standalone block: no task involved, ever. */
-  function addFreeBlock() {
+  function addFreeBlock(title = "") {
     const last = dayBlocks[dayBlocks.length - 1];
     const start = clampStart(last ? last.start + last.duration : 9 * 60, NEW_DURATION);
-    const block: Block = { id: uid(), date, start, duration: NEW_DURATION, title: "" };
+    const block: Block = { id: uid(), date, start, duration: NEW_DURATION, title };
     onSaveBlock(block);
-    setEditing(block.id);
+    if (!title) setEditing(block.id);
+  }
+
+  function submitEntry() {
+    const title = entry.trim();
+    if (!title) return;
+    addFreeBlock(title);
+    setEntry("");
   }
 
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
@@ -220,16 +251,42 @@ export default function DayPlanner({
         </header>
       )}
 
-      <div className="flex shrink-0 items-center justify-between border-b border-[var(--rule)] px-6 py-4">
-        <button onClick={() => setDate(shiftDate(date, -1))} className="label px-2">
-          ←
-        </button>
-        <button onClick={() => setDate(dayKey(new Date()))} className="text-xl font-medium">
-          {headingFor(date)}
-        </button>
-        <button onClick={() => setDate(shiftDate(date, 1))} className="label px-2">
-          →
-        </button>
+      <div
+        className="shrink-0 border-b border-[var(--rule)] px-6 py-4"
+        onTouchStart={onDayTouchStart}
+        onTouchEnd={onDayTouchEnd}
+      >
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setDayOffset((o) => Math.max(0, o - 1))}
+            disabled={dayOffset === 0}
+            className="label px-2 disabled:opacity-30"
+          >
+            ←
+          </button>
+          <button onClick={() => setDayOffset(0)} className="text-xl font-medium">
+            {headingFor(date)}
+          </button>
+          <button
+            onClick={() => setDayOffset((o) => Math.min(DAYS_AHEAD - 1, o + 1))}
+            disabled={dayOffset === DAYS_AHEAD - 1}
+            className="label px-2 disabled:opacity-30"
+          >
+            →
+          </button>
+        </div>
+
+        <div className="mt-3 flex justify-center gap-2">
+          {Array.from({ length: DAYS_AHEAD }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setDayOffset(i)}
+              aria-label={`Day ${i + 1}`}
+              className="h-1.5 w-8 rounded-full transition-colors duration-300"
+              style={{ background: i === dayOffset ? "var(--accent)" : "var(--rule)" }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Tray: drag one of these onto the grid to schedule it. */}
@@ -405,18 +462,27 @@ export default function DayPlanner({
       </div>
 
       <footer className="shrink-0 border-t border-[var(--rule)] p-4 pb-8">
+        <p className="label mb-2">Add to the day</p>
         <div className="flex gap-3">
-          <button onClick={addFreeBlock} className="btn-ghost flex-1">
-            Add block
-          </button>
-          <button
-            onClick={() => dayBlocks.forEach((b) => onDeleteBlock(b.id))}
-            disabled={dayBlocks.length === 0}
-            className="btn-ghost flex-1"
-          >
-            Clear day
+          <input
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitEntry()}
+            placeholder="lunch at miller's"
+            autoCapitalize="none"
+            className="field flex-1"
+          />
+          <button onClick={submitEntry} disabled={!entry.trim()} className="btn-dark">
+            Add
           </button>
         </div>
+        <button
+          onClick={() => dayBlocks.forEach((b) => onDeleteBlock(b.id))}
+          disabled={dayBlocks.length === 0}
+          className="btn-ghost mt-3 w-full"
+        >
+          Clear day
+        </button>
       </footer>
     </div>
   );

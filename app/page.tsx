@@ -18,7 +18,6 @@ import {
   ParsedTask,
   Settings,
   Task,
-  PLAN_LIST_ID,
   TODAY_LIST_ID,
   TOMORROW_LIST_ID,
 } from "@/lib/types";
@@ -90,6 +89,8 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [activeList, setActiveList] = useState<string>(TODAY_LIST_ID);
   const [quick, setQuick] = useState("");
+  /** The logo toggles the day planner. */
+  const [planOpen, setPlanOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [subtaskDraft, setSubtaskDraft] = useState<Record<string, string>>({});
   const [menuOpen, setMenuOpen] = useState(false);
@@ -414,7 +415,7 @@ export default function Home() {
 
   // Counts follow whatever bucket you're looking at; only "All" is global.
   const inDoneView = activeList === DONE_LIST_ID;
-  const inPlan = activeList === PLAN_LIST_ID;
+  const inPlan = planOpen;
 
   /** Rail order, used by both the tabs and the swipe gesture. */
   const railIds = useMemo(() => ["all", ...lists.map((l) => l.id)], [lists]);
@@ -645,9 +646,17 @@ export default function Home() {
     >
       <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[var(--bg-95)] backdrop-blur">
         <div className="flex h-20 items-center justify-between px-6">
-          {/* The mark replaces the wordmark, at 150% of the old 24px type. */}
+          {/* The mark doubles as the day-planner toggle. */}
           <h1 className="flex items-center">
-            <Mark height={36} />
+            <button
+              onClick={() => setPlanOpen((o) => !o)}
+              aria-pressed={planOpen}
+              aria-label={planOpen ? "Close the day plan" : "Open the day plan"}
+              className="flex items-center rounded-[10px] px-2 py-1 transition-colors duration-300"
+              style={{ background: planOpen ? "var(--accent)" : "transparent" }}
+            >
+              <Mark height={36} color={planOpen ? "var(--on-accent)" : "var(--fg)"} />
+            </button>
             <span className="sr-only">swoosh</span>
           </h1>
           <div className="flex items-center gap-5">
@@ -698,7 +707,10 @@ export default function Home() {
             return (
               <button
                 key={l.id}
-                onClick={() => setActiveList(l.id)}
+                onClick={() => {
+                  setActiveList(l.id);
+                  setPlanOpen(false);
+                }}
                 className="whitespace-nowrap text-[1.125rem] font-medium uppercase transition-colors duration-300"
                 style={{
                   letterSpacing: "0.2em",
@@ -748,7 +760,7 @@ export default function Home() {
           <button
             onClick={() => setShowVoice(true)}
             aria-label="Leave a voice note"
-            className="btn-dark flex h-14 w-14 shrink-0 items-center justify-center !p-0"
+            className="btn-dark !flex h-14 w-14 shrink-0 items-center justify-center !p-0"
           >
             <Mic />
           </button>

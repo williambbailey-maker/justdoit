@@ -82,10 +82,8 @@ export default function VoiceSheet({
     }
     setStage("thinking");
 
-    const explicitBoundaries = transcript.includes("\n");
-
     const fallback = () => {
-      setDraft(localParse(transcript, lists, settings.defaultListId, explicitBoundaries));
+      setDraft(localParse(transcript, lists, settings.defaultListId));
       setStage("review");
     };
 
@@ -100,7 +98,6 @@ export default function VoiceSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transcript,
-          explicitBoundaries,
           lists: lists.map((l) => ({ id: l.id, name: l.name, keywords: l.keywords })),
           apiKey: settings.apiKey || undefined,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -187,7 +184,7 @@ export default function VoiceSheet({
               }}
               placeholder={
                 supported
-                  ? 'Tap record, or type here. One task per line — say "new task" to start a new line.'
+                  ? 'Tap record, or type here. One task per line — say "new task" to split.'
                   : "Speech recognition isn't supported here — type the note, one task per line."
               }
               autoCapitalize="none"
