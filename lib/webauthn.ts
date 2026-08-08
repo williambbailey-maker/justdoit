@@ -33,23 +33,47 @@ function challenge(): ArrayBuffer {
   return crypto.getRandomValues(new Uint8Array(32)).buffer;
 }
 
-/** Why Face ID isn't available here, or null when it is. */
-export async function faceIdBlocker(): Promise<string | null> {
-  if (typeof window === "undefined") return "not in a browser";
-  if (!window.isSecureContext) return "needs https (this page is not a secure context)";
-  if (!window.PublicKeyCredential || !navigator.credentials) {
-    return "this browser has no WebAuthn support";
-  }
-  try {
-    const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    return ok ? null : "no biometric authenticator on this device";
-  } catch (err) {
-    return describe(err);
-  }
+/** Running from the home screen rather than in the browser. */
+export function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const iosStandalone = (window.navigator as { standalone?: boolean }).standalone === true;
+  return iosStandalone || window.matchMedia("(display-mode: standalone)").matches;
 }
 
-export async function faceIdAvailable(): Promise<boolean> {
-  return (await faceIdBlocker()) === null;
+export type FaceIdStatus =
+  /** Everything checks out. */
+  | { state: "ready" }
+  /** The device says no, but the check is advisory — enrolling may still work. */
+  | { state: "unlikely"; reason: string }
+  /** Nothing to try: no API, or not a secure context. */
+  | { state: "blocked"; reason: string };
+
+export async function faceIdStatus(): Promise<FaceIdStatus> {
+  if (typeof window === "undefined") return { state: "blocked", reason: "not in a browser" };
+  if (!window.isSecureContext) {
+    return { state: "blocked", reason: "this page is not served over https" };
+  }
+  if (!window.PublicKeyCredential || !navigator.credentials) {
+    return { state: "blocked", reason: "this browser has no WebAuthn support" };
+  }
+
+  try {
+    if (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+      return { state: "ready" };
+    }
+  } catch {
+    // Fall through: a throwing check is no more final than a false one.
+  }
+
+  // iOS reports no authenticator inside a home-screen web app even on a phone
+  // with Face ID. The check is a hint, not a verdict, so the caller is still
+  // allowed to attempt enrolment.
+  return {
+    state: "unlikely",
+    reason: isStandalone()
+      ? "iOS often reports no authenticator inside a home-screen app, even when Face ID works"
+      : "this device reports no biometric authenticator",
+  };
 }
 
 /** WebAuthn errors are terse and all look alike; name them plainly. */
@@ -67,8 +91,9 @@ function describe(err: unknown): string {
 
 /** Enrol this device. Returns the credential id, or the reason it failed. */
 export async function registerFaceId(): Promise<{ id: string } | { error: string }> {
-  const blocker = await faceIdBlocker();
-  if (blocker) return { error: blocker };
+  const status = await faceIdStatus();
+  // Only a hard block stops us — "unlikely" is worth attempting anyway.
+  if (status.state === "blocked") return { error: status.reason };
   try {
     const cred = (await navigator.credentials.create({
       publicKey: {

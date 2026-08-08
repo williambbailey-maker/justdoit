@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { exportAll, importAll, wipeAll } from "@/lib/db";
 import { hashCode } from "@/lib/lock";
-import { faceIdBlocker, registerFaceId } from "@/lib/webauthn";
+import { FaceIdStatus, faceIdStatus, registerFaceId } from "@/lib/webauthn";
 import { List, Settings } from "@/lib/types";
 
 // Literal colours, not theme variables: these are stored as the accent value.
@@ -39,12 +39,22 @@ export default function SettingsPanel({
   const [status, setStatus] = useState<string | null>(null);
   const [codeDraft, setCodeDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  /** null = still checking, "" = available, otherwise the reason it is not. */
-  const [faceIdWhy, setFaceIdWhy] = useState<string | null>(null);
+  const [faceId, setFaceId] = useState<FaceIdStatus | null>(null);
 
   useEffect(() => {
-    void faceIdBlocker().then((why) => setFaceIdWhy(why ?? ""));
+    void faceIdStatus().then(setFaceId);
   }, []);
+
+  async function enrolFaceId() {
+    setStatus("Asking for Face ID…");
+    const result = await registerFaceId();
+    if ("error" in result) {
+      setStatus(`Face ID setup failed: ${result.error}`);
+      return;
+    }
+    onSaveSettings({ ...settings, faceIdCredential: result.id });
+    setStatus("Face ID is on.");
+  }
 
   const patch = (p: Partial<Settings>) => onSaveSettings({ ...settings, ...p });
 
@@ -257,10 +267,8 @@ export default function SettingsPanel({
           </Row>
 
           <Row label="Face ID">
-            {faceIdWhy ? (
-              <p className="text-sm text-[var(--fg-2)]">
-                Not available here: {faceIdWhy}.
-              </p>
+            {faceId?.state === "blocked" ? (
+              <p className="text-sm text-[var(--fg-2)]">Not available here: {faceId.reason}.</p>
             ) : settings.faceIdCredential ? (
               <>
                 <p className="mb-3 text-sm text-[var(--fg-2)]">
@@ -279,23 +287,12 @@ export default function SettingsPanel({
             ) : (
               <>
                 <p className="mb-3 text-sm text-[var(--fg-2)]">
-                  Unlock with your face instead of typing the code. Enrolment is
-                  per-device and never leaves it.
+                  {faceId?.state === "unlikely"
+                    ? `${faceId.reason}. Worth trying anyway — if the prompt appears, it works.`
+                    : "Unlock with your face instead of typing the code. Enrolment is per-device and never leaves it."}
                 </p>
-                <button
-                  onClick={async () => {
-                    setStatus("Asking for Face ID…");
-                    const result = await registerFaceId();
-                    if ("error" in result) {
-                      setStatus(`Face ID setup failed: ${result.error}`);
-                      return;
-                    }
-                    patch({ faceIdCredential: result.id });
-                    setStatus("Face ID is on.");
-                  }}
-                  className="btn-dark"
-                >
-                  Turn on Face ID
+                <button onClick={enrolFaceId} className="btn-dark">
+                  {faceId?.state === "unlikely" ? "Try Face ID anyway" : "Turn on Face ID"}
                 </button>
               </>
             )}
