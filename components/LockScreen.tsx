@@ -15,7 +15,7 @@ export default function LockScreen({
   mode: "unlock" | "set";
   onSubmit: (code: string) => void;
   /** Present only when this device is enrolled for Face ID. */
-  onFaceId?: () => void;
+  onFaceId?: (manual: boolean) => void;
   error?: string;
 }) {
   const [code, setCode] = useState("");
@@ -59,7 +59,7 @@ export default function LockScreen({
   useEffect(() => {
     if (mode !== "unlock" || !onFaceId || prompted.current) return;
     prompted.current = true;
-    onFaceId();
+    onFaceId(false);
   }, [mode, onFaceId]);
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function LockScreen({
         </div>
 
         {mode === "unlock" && onFaceId && (
-          <button onClick={onFaceId} className="btn-ghost w-full max-w-xs">
+          <button onClick={() => onFaceId(true)} className="btn-ghost w-full max-w-xs">
             Use Face ID
           </button>
         )}

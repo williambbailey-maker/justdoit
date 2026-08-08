@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { exportAll, importAll, wipeAll } from "@/lib/db";
 import { hashCode } from "@/lib/lock";
-import { faceIdAvailable, registerFaceId } from "@/lib/webauthn";
+import { faceIdBlocker, registerFaceId } from "@/lib/webauthn";
 import { List, Settings } from "@/lib/types";
 
 // Literal colours, not theme variables: these are stored as the accent value.
@@ -39,10 +39,11 @@ export default function SettingsPanel({
   const [status, setStatus] = useState<string | null>(null);
   const [codeDraft, setCodeDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const [faceIdOk, setFaceIdOk] = useState<boolean | null>(null);
+  /** null = still checking, "" = available, otherwise the reason it is not. */
+  const [faceIdWhy, setFaceIdWhy] = useState<string | null>(null);
 
   useEffect(() => {
-    void faceIdAvailable().then(setFaceIdOk);
+    void faceIdBlocker().then((why) => setFaceIdWhy(why ?? ""));
   }, []);
 
   const patch = (p: Partial<Settings>) => onSaveSettings({ ...settings, ...p });
@@ -256,10 +257,9 @@ export default function SettingsPanel({
           </Row>
 
           <Row label="Face ID">
-            {faceIdOk === false ? (
+            {faceIdWhy ? (
               <p className="text-sm text-[var(--fg-2)]">
-                This device or browser has no biometric unlock available. On iPhone,
-                add swoosh to your home screen and open it from there.
+                Not available here: {faceIdWhy}.
               </p>
             ) : settings.faceIdCredential ? (
               <>
@@ -284,12 +284,13 @@ export default function SettingsPanel({
                 </p>
                 <button
                   onClick={async () => {
-                    const id = await registerFaceId();
-                    if (!id) {
-                      setStatus("Face ID setup was cancelled or unavailable.");
+                    setStatus("Asking for Face ID…");
+                    const result = await registerFaceId();
+                    if ("error" in result) {
+                      setStatus(`Face ID setup failed: ${result.error}`);
                       return;
                     }
-                    patch({ faceIdCredential: id });
+                    patch({ faceIdCredential: result.id });
                     setStatus("Face ID is on.");
                   }}
                   className="btn-dark"

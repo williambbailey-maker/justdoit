@@ -237,15 +237,22 @@ export default function Home() {
     await db.saveSettings(s);
   };
 
-  const tryFaceId = useCallback(async () => {
-    if (!settings.faceIdCredential) return;
-    if (await verifyFaceId(settings.faceIdCredential)) {
-      markUnlocked();
-      setLockError(undefined);
-      setGate("open");
-    }
-    // A failed or dismissed prompt says nothing — the keypad is still there.
-  }, [settings.faceIdCredential]);
+  const tryFaceId = useCallback(
+    async (manual: boolean) => {
+      if (!settings.faceIdCredential) return;
+      const result = await verifyFaceId(settings.faceIdCredential);
+      if (result.ok) {
+        markUnlocked();
+        setLockError(undefined);
+        setGate("open");
+        return;
+      }
+      // The prompt fired on appear may be refused for want of a user gesture,
+      // which is normal and not worth reporting. A tap that fails is.
+      if (manual) setLockError(`Face ID: ${result.error}`);
+    },
+    [settings.faceIdCredential],
+  );
 
   const handleCode = useCallback(
     async (code: string) => {
@@ -650,7 +657,9 @@ export default function Home() {
       <LockScreen
         mode={gate === "set" ? "set" : "unlock"}
         onSubmit={handleCode}
-        onFaceId={settings.faceIdCredential ? () => void tryFaceId() : undefined}
+        onFaceId={
+          settings.faceIdCredential ? (manual: boolean) => void tryFaceId(manual) : undefined
+        }
         error={lockError}
       />
     );
