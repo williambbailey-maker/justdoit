@@ -8,11 +8,14 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 export default function LockScreen({
   mode,
   onSubmit,
+  onFaceId,
   error,
 }: {
   /** "unlock" checks an existing code; "set" captures a new one twice. */
   mode: "unlock" | "set";
   onSubmit: (code: string) => void;
+  /** Present only when this device is enrolled for Face ID. */
+  onFaceId?: () => void;
   error?: string;
 }) {
   const [code, setCode] = useState("");
@@ -48,6 +51,16 @@ export default function LockScreen({
       setCode("");
     }
   }, [code, mode, confirm, onSubmit]);
+
+  // Offer Face ID as soon as the lock screen appears. Safari can refuse a
+  // WebAuthn call made without a user gesture, so the button stays visible
+  // either way and this is a best-effort convenience.
+  const prompted = useRef(false);
+  useEffect(() => {
+    if (mode !== "unlock" || !onFaceId || prompted.current) return;
+    prompted.current = true;
+    onFaceId();
+  }, [mode, onFaceId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,6 +106,12 @@ export default function LockScreen({
             />
           ))}
         </div>
+
+        {mode === "unlock" && onFaceId && (
+          <button onClick={onFaceId} className="btn-ghost w-full max-w-xs">
+            Use Face ID
+          </button>
+        )}
 
         <div className="grid w-full max-w-xs grid-cols-3 overflow-hidden rounded-[14px] border-l border-t border-[var(--rule)]">
           {KEYS.map((k, i) =>

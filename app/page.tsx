@@ -10,6 +10,7 @@ import VoiceSheet from "@/components/VoiceSheet";
 import * as db from "@/lib/db";
 import { clearUnlocked, hashCode, isUnlocked, markUnlocked, touchUnlocked } from "@/lib/lock";
 import { localParse } from "@/lib/localParse";
+import { verifyFaceId } from "@/lib/webauthn";
 import {
   Block,
   DEFAULT_SETTINGS,
@@ -235,6 +236,16 @@ export default function Home() {
     localStorage.setItem(SPLASH_KEY, String(s.splashSeconds));
     await db.saveSettings(s);
   };
+
+  const tryFaceId = useCallback(async () => {
+    if (!settings.faceIdCredential) return;
+    if (await verifyFaceId(settings.faceIdCredential)) {
+      markUnlocked();
+      setLockError(undefined);
+      setGate("open");
+    }
+    // A failed or dismissed prompt says nothing — the keypad is still there.
+  }, [settings.faceIdCredential]);
 
   const handleCode = useCallback(
     async (code: string) => {
@@ -635,7 +646,14 @@ export default function Home() {
   }
 
   if (gate === "set" || gate === "locked") {
-    return <LockScreen mode={gate === "set" ? "set" : "unlock"} onSubmit={handleCode} error={lockError} />;
+    return (
+      <LockScreen
+        mode={gate === "set" ? "set" : "unlock"}
+        onSubmit={handleCode}
+        onFaceId={settings.faceIdCredential ? () => void tryFaceId() : undefined}
+        error={lockError}
+      />
+    );
   }
 
   return (

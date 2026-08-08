@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { exportAll, importAll, wipeAll } from "@/lib/db";
 import { hashCode } from "@/lib/lock";
+import { faceIdAvailable, registerFaceId } from "@/lib/webauthn";
 import { List, Settings } from "@/lib/types";
 
 // Literal colours, not theme variables: these are stored as the accent value.
@@ -38,6 +39,11 @@ export default function SettingsPanel({
   const [status, setStatus] = useState<string | null>(null);
   const [codeDraft, setCodeDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [faceIdOk, setFaceIdOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void faceIdAvailable().then(setFaceIdOk);
+  }, []);
 
   const patch = (p: Partial<Settings>) => onSaveSettings({ ...settings, ...p });
 
@@ -247,6 +253,51 @@ export default function SettingsPanel({
               <option value={60}>After 1 hour</option>
               <option value={1440}>After 1 day</option>
             </select>
+          </Row>
+
+          <Row label="Face ID">
+            {faceIdOk === false ? (
+              <p className="text-sm text-[var(--fg-2)]">
+                This device or browser has no biometric unlock available. On iPhone,
+                add swoosh to your home screen and open it from there.
+              </p>
+            ) : settings.faceIdCredential ? (
+              <>
+                <p className="mb-3 text-sm text-[var(--fg-2)]">
+                  On. Your code still works if Face ID fails.
+                </p>
+                <button
+                  onClick={() => {
+                    patch({ faceIdCredential: "" });
+                    setStatus("Face ID turned off.");
+                  }}
+                  className="btn-ghost"
+                >
+                  Turn off Face ID
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-[var(--fg-2)]">
+                  Unlock with your face instead of typing the code. Enrolment is
+                  per-device and never leaves it.
+                </p>
+                <button
+                  onClick={async () => {
+                    const id = await registerFaceId();
+                    if (!id) {
+                      setStatus("Face ID setup was cancelled or unavailable.");
+                      return;
+                    }
+                    patch({ faceIdCredential: id });
+                    setStatus("Face ID is on.");
+                  }}
+                  className="btn-dark"
+                >
+                  Turn on Face ID
+                </button>
+              </>
+            )}
           </Row>
 
           <Row label="Change code">

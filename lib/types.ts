@@ -81,6 +81,9 @@ export interface VoiceNote {
 export interface Settings {
   /** SHA-256 of the 4-digit code. Null means the app is unlocked/unconfigured. */
   codeHash: string | null;
+  /** WebAuthn credential id for Face ID unlock. Empty means not enrolled.
+   *  Device-specific, like codeHash — never exported. */
+  faceIdCredential: string;
   /** Minutes of inactivity before re-locking. 0 disables auto-lock. */
   autoLockMinutes: number;
   defaultListId: string;
@@ -103,6 +106,7 @@ export const SETTINGS_VERSION = 3;
 
 export const DEFAULT_SETTINGS: Settings = {
   codeHash: null,
+  faceIdCredential: "",
   autoLockMinutes: 60,
   defaultListId: "inbox",
   accent: "#1351AA",

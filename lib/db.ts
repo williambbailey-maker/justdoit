@@ -140,8 +140,14 @@ export async function exportAll() {
     getBlocks(),
     getSettings(),
   ]);
-  // The code hash is device-local; leaving it out keeps backups portable.
-  const { codeHash: _codeHash, apiKey: _apiKey, ...safeSettings } = settings;
+  // Code hash and Face ID enrolment are device-local; leaving them out keeps
+  // backups portable and stops an import stealing another device's unlock.
+  const {
+    codeHash: _codeHash,
+    apiKey: _apiKey,
+    faceIdCredential: _faceId,
+    ...safeSettings
+  } = settings;
   return { version: 2, exportedAt: Date.now(), tasks, lists, notes, blocks, settings: safeSettings };
 }
 
@@ -161,7 +167,13 @@ export async function importAll(data: {
   ]);
   if (data.settings) {
     // Never let an import overwrite this device's lock code or key.
-    await saveSettings({ ...current, ...data.settings, codeHash: current.codeHash, apiKey: current.apiKey });
+    await saveSettings({
+      ...current,
+      ...data.settings,
+      codeHash: current.codeHash,
+      apiKey: current.apiKey,
+      faceIdCredential: current.faceIdCredential,
+    });
   }
 }
 
